@@ -1,0 +1,377 @@
+
+ <!DOCTYPE HTML>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  
+    <title>查找lua层的内存泄漏问题 | radiotail&#39;s blog</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=3, minimum-scale=1">
+    
+    <meta name="author" content="radiotail">
+    
+    <meta name="description" content="最近项目上线后发现了严重的内存泄漏情况，导致地图服务器晚上因为内存泄漏过大直接宕机，为此我只好赶紧想办法来查内存泄漏的原因，省得晚上连觉都睡不好。　　查lua内存泄漏比较麻烦，不像查c内存泄漏那样有valgrind这么强大的工具，只能自己想办法些东西来查。当然像我们是用的这种c++与lua结合的框架">
+    
+    
+    
+    
+    
+    <link rel="icon" href="/img/favicon.ico">
+    
+    
+    <link rel="apple-touch-icon" href="/img/pacman.jpg">
+    <link rel="apple-touch-icon-precomposed" href="/img/pacman.jpg">
+    
+    <link rel="stylesheet" href="/css/style.css" type="text/css">
+
+</head>
+
+  <body>
+    <header>
+      <div>
+		
+			<div id="imglogo">
+				<a href="/"><img src="/img/logo.svg" alt="radiotail&#39;s blog" title="radiotail&#39;s blog"/></a>
+			</div>
+			
+			<div id="textlogo">
+				<h1 class="site-name"><a href="/" title="radiotail&#39;s blog">radiotail&#39;s blog</a></h1>
+				<h2 class="blog-motto">疾如风，徐如林，侵略如火，不动如山</h2>
+			</div>
+			<div class="navbar"><a class="navbutton navmobile" href="#" title="菜单">
+			</a></div>
+			<nav class="animated">
+				<ul>
+					<ul>
+					 
+						<li><a href="/">Home</a></li>
+					
+						<li><a href="/archives">Archives</a></li>
+					
+						<li><a href="/about">About</a></li>
+					
+					<li>
+					
+					<form class="search" action="//baidu.com/s" method="get" accept-charset="utf-8">
+						<label>Search</label>
+						<input type="text" id="search" name="wd" autocomplete="off" maxlength="20" placeholder="搜索" />
+                        <input name=tn type=hidden value="bds">
+                        <input name=cl type=hidden value="3">
+                        <input name=ct type=hidden value="2097152">
+						<input type="hidden" name="si" value="radiotail.github.io">
+					</form>
+					
+					</li>
+				</ul>
+			</nav>			
+</div>
+
+    </header>
+    <div id="container">
+      <div id="main" class="post" itemscope itemprop="blogPost">
+	<article itemprop="articleBody"> 
+		<header class="article-info clearfix">
+  <h1 itemprop="name">
+    
+      <a href="/2014/11/03/查找lua层的内存泄漏问题/" title="查找lua层的内存泄漏问题" itemprop="url">查找lua层的内存泄漏问题</a>
+  </h1>
+  <p class="article-author">By
+    
+      <a href="http://radiotail.github.io" title="radiotail">radiotail</a>
+    </p>
+  <p class="article-time">
+    <time datetime="2014-11-03T15:29:42.000Z" itemprop="datePublished">11月 3 2014</time>
+    更新日期:<time datetime="2014-11-03T16:49:59.000Z" itemprop="dateModified">11月 4 2014</time>
+    
+  </p>
+</header>
+
+	<div class="article-content">
+		
+		
+		<div id="toc" class="toc-article">
+			<strong class="toc-title">文章目录</strong>
+		
+		</div>
+		
+		<p>　　最近项目上线后发现了严重的内存泄漏情况，导致地图服务器晚上因为内存泄漏过大直接宕机，为此我只好赶紧想办法来查内存泄漏的原因，省得晚上连觉都睡不好。<br>　　查lua内存泄漏比较麻烦，不像查c内存泄漏那样有valgrind这么强大的工具，只能自己想办法些东西来查。当然像我们是用的这种c++与lua结合的框架如果出现泄露了也不一定就是因为lua层造成的泄漏，也有可能是c++层，可以简单的通过调用collectgarbage(“count”)来查看lua使用内存的情况，如果没有异常的话那很可能是c++泄露了，否则就要去查lua了。查lua内存泄漏的基本思路是从_G和registry表开始向下遍历，_G表是用来存储全局变量的表，registry表是c中用来存储lua值的。为什么要这样做呢？因为lua中如果有东西没释放掉的话肯定是在某个地方被引用了，而从这个泄漏的东西不断向上追溯的话肯定会追溯到这两个表，所以反过来想，如果有泄漏的话从这两个表向下不断查找，肯定能查到泄漏的东西。<br>　　查找的过程基本是个递归的过程，然后根据具体类型分别作处理。lua会触发gc的类型包括table，userdata，function，thread和string这几种，我没有管后两种，主要是我觉得string和thread导致内存泄漏的可能性太小了，没必要查他们，当然你也可以打出来看看。我首先写了一个searchObject函数用来检测传进去的值类型，然后再根据具体的类型决定是调用searchTable还是调用searchFunction又或者是调用searchUserdata来具体处理这个类型。被检测的值都要标记起来，这样做是为了避免重复查找。我是用一个table做标记保存，将对象的地址转为字符串做key（直接用地址做key的话要用弱表，否则会造成内存泄漏），将得到的信息如描述，父节点等等放在一个table中做value，然后把key和value放到标记table中，并且不同对象类型放到了不同的table中，这样做主要是为了打印结果的时候可以分类。搜索的过程中为了便于你生成的log容易阅读，最好为被检测的对象增加一些描述信息，这可以根据你的具体需求做。比如被检测对象是table，并且table中的key是string或者number的话我会直接用这个key做描述。如果这个table是我们游戏内定义的player对象，我会再增加一些player的特别描述。如果对象是function的话我会用debug.getinfo函数打印出function的基本信息，等等。你可以根据你们项目的特点编写符合你们项目的描述方案。<br>　　在检测不同类型对象的时候还要注意一些事情。如果被检测值是table类型，那么我们需要再调用searchObject来检查table的每一个key和value，当然我前面提过如果key是string和number类型的话我直接用来做value的描述了，所以没有对这两种类型继续进行检测，而其他类型的key还是需要检测的。如果被检测值是function的话我会调用debug.getupvalue函数获得function的upvalue，并对他们进行检查。此外table和userdata两种类型因为都有metatable，所以我还通过调用debug.getmetatable获得他们的metatable来进行检查，毕竟table泄露我觉得可能性是最大的，所以查一下metatable还是很有必要的。<br>　　目前我们根据上述做法就能够获得lua当前没有释放掉的所有东西了，但是如果你输出到log中查看的时候可能会非常头痛，因为某一时刻一个项目中可能有很多对象没有释放，当然这不一定是内存泄漏，因为项目中本来就有可能要创建大量的对象出来，而此时大量的非泄露对象就会成为干扰信息，让你很难分析到底是那些东西导致了内存泄漏。那么我们用什么办法来减少甚至完全排除掉这些干扰信息呢？我也没想到什么方法能够完全排除掉这些干扰信息，只想到了一个减少干扰的方案，那就是对比两次内存信息，找到第二次新增的对象。如果出现内存泄漏的话，对比两次内存情况肯定会有一些对象是新增的，而这些新增的对象当中肯定会包含泄露的对象。所以按照这个思路我需要将两次的内存情况分别保存在不同的table中，并用写一个函数去对比第二个table中新增的对象有哪些，这样我们就能得到一个比较小的泄漏范围了，接下来我们的任务就是在这个小范围内确定到底哪些东西时内存泄漏的对象。<br>　　只输出了新增对象你会发现找起来还是比较费力，毕竟数据还是一大堆，分析起来确实不易，我也曾尝试输出一个关系图，我觉得这样可以更清晰的看到对象之间的关系，便于我发现问题的所在，不过尝试之后结果让我很不满意，因为对象比较多，输出的关系很乱，我用一个绘图软件整理了一下，但因为对象多，关系乱的原因还是没法看，甚至输出的图长得让我的快找不到边儿了，因此我只好另寻他法了。仔细想想如果有内存泄露的话你肯定会发现有一个父节点下的值越来越多，不管是_G，registry还是你自定义的table等等，肯定会有一个下面存在非常多的值。本着这个思路我增加了两个列表的输出，一个是parents list，另一个是value count list。parents list主要用来输出新增对象列表中那些对象的父节点的描述信息，也就是说你可以通过这个列表知道新增的对象是在什么东西下面。value count list主要用来了输出一个父节点下面到底有多少个子节点，如果父节点下面有很多子节点，那你就要注意了，很有可能是这个父节点下面的子节点有泄漏情况，然后你可以通过parents list得知这个父节点是什么，再去新增对象列表里查看有哪些对象是这个父节点下的节点，这样就能基本确定泄露的对象到底是什么了，再结合代码去查，应该就能够查到原因了。<br>　　实际在我利用这个小工具查找我们项目的内存泄漏时基本和我上述的情况一样，通过查看对比后的内存情况我发现又一个table下面有很多值，然后我通过parents list确定了这个table是什么，接着我又通过new objects list得知这个table下面的节点是什么，然后结合代码发现原来是一个技能的一个攻击列表出错了，不断的向这个table中放入对象，但却没有移除，导致每使用一次技能后列表都会变大，从而出现了内存泄漏。然后我们迅速的对这个bug进行了修改，终于解决了这个问题。<br>　　当然我用lua来写这个工具在遍历内存的时候肯定会慢些，如果你对遍历的速度要求较高，不希望游戏会卡一下的话可以用c来写这个工具，应该会快不少。我之所以用lua来写主要是我当时的需求是要在游戏运行时用外部的工具来查找内存泄漏，用lua来写我可以在线更新到游戏中然后调用接口输出log，在运行时其实也就是卡了1，2s的样子，比起晚上晚上宕机，这还是可忍的。<br>　　我已经把自己写的查看lua内存泄露的小工具上传到了<a href="https://github.com/radiotail/lua_memleak" target="_blank" rel="external">github</a>中，输出的log格式不好看，不过对我来说已经够用了，用着别扭的朋友可以自行修改。</p>
+  
+	</div>
+		<footer class="article-footer clearfix">
+
+  <div class="article-tags">
+  
+  <span></span> <a href="/tags/lua/">lua</a>
+  </div>
+
+
+<div class="article-categories">
+  <span></span>
+  <a class="article-category-link" href="/categories/lua/">lua</a>
+</div>
+
+
+
+<div class="article-share" id="share">
+
+  
+<div class="jiathis_style">
+    <span class="jiathis_txt">分享到：</span>
+    <a class="jiathis_button_tsina">新浪微博</a>
+    <a class="jiathis_button_weixin">微信</a>
+    <a class="jiathis_button_twitter">Twitter</a>
+    <a class="jiathis_button_evernote">EverNote</a>
+    <a href="http://www.jiathis.com/share?uid=1501277" class="jiathis jiathis_txt jiathis_separator jtico jtico_jiathis" target="_blank">更多</a>
+</div>
+<script type="text/javascript" >
+    var jiathis_config={
+    data_track_clickback:true,
+    sm:"copy,renren,cqq",
+    pic:"",
+    summary:"",
+    
+  </script> 
+<script type="text/javascript" src="//v3.jiathis.com/code/jia.js?uid=
+" charset="utf-8"></script>      
+
+
+</div>
+</footer>   	       
+	</article>
+	
+<nav class="article-nav clearfix">
+ 
+ <div class="prev" >
+ <a href="/2014/11/09/让lua的gc替我们回收c的堆变量/" title="让lua的gc替我们回收c的堆变量">
+  <strong>PREVIOUS:</strong><br/>
+  <span>
+  让lua的gc替我们回收c的堆变量</span>
+</a>
+</div>
+
+
+<div class="next">
+<a href="/2014/10/28/Eluna发布/"  title="Eluna——简单,轻量级的c++开发语言和Lua绑定库">
+ <strong>NEXT:</strong><br/> 
+ <span>Eluna——简单,轻量级的c++开发语言和Lua绑定库
+</span>
+</a>
+</div>
+
+</nav>
+
+	
+<section class="comment">
+	<div class="ds-thread" data-thread-key="2014/11/03/查找lua层的内存泄漏问题/" data-title="查找lua层的内存泄漏问题" data-url="http://radiotail.github.io/2014/11/03/查找lua层的内存泄漏问题/"></div>
+</section>
+
+
+</div>  
+      <div class="openaside"><a class="navbutton" href="#" title="显示侧边栏"></a></div>
+
+  <div id="toc" class="toc-aside">
+  <strong class="toc-title">文章目录</strong>
+  
+  </div>
+
+<div id="asidepart">
+<div class="closeaside"><a class="closebutton" href="#" title="隐藏侧边栏"></a></div>
+<aside class="clearfix">
+
+  
+<div class="categorieslist">
+	<p class="asidetitle">分类</p>
+		<ul>
+		
+			<li><a href="/categories/lua/c/" title="c">c<sup>2</sup></a></li>
+		
+			<li><a href="/categories/lua/" title="lua">lua<sup>4</sup></a></li>
+		
+			<li><a href="/categories/随笔/" title="随笔">随笔<sup>2</sup></a></li>
+		
+		</ul>
+</div>
+
+
+  
+  <div class="tagcloudlist">
+    <p class="asidetitle">标签云</p>
+    <div class="tagcloudlist clearfix">
+       <a href="/tags/c/" style="font-size: 10.00px;">c</a><a href="/tags/lua/" style="font-size: 20.00px;">lua</a><a href="/tags/随笔/" style="font-size: 10.00px;">随笔</a>
+    </div>
+  </div>
+
+
+  
+  <div class="archiveslist">
+    <p class="asidetitle"><a href="/archives">归档</a></p>
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2015/10/">October 2015</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2014/11/">November 2014</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2014/10/">October 2014</a><span class="archive-list-count">2</span></li></ul>
+  </div>
+
+
+</aside>
+</div>
+    </div>
+    <footer><div id="footer" >
+	
+	<div class="line">
+		<span></span>
+		<div class="author"></div>
+	</div>
+	
+	
+	<section class="info">
+		<p> 要得到真正的快乐，我们只需拥有三样东西： <br/>
+			有想做的事，有值得爱的人，有美丽的梦。</p>
+	</section>
+	 
+	<div class="social-font" class="clearfix">
+		
+		<a href="http://weibo.com/1833264473" target="_blank" title="weibo"></a>
+		
+		
+		
+		<a href="https://github.com/radiotail" target="_blank" title="github"></a>
+		
+		
+	</div>
+		<p class="copyright">Powered by <a href="http://hexo.io" target="_blank" title="hexo">hexo</a> and Theme by <a href="https://github.com/wizicer/iceman" target="_blank" title="Iceman">Iceman</a> © 2015 
+		
+		<a href="http://radiotail.github.io" target="_blank" title="radiotail">radiotail</a>
+		
+		</p>
+</div>
+</footer>
+    <script src="/js/jquery-2.1.0.min.js"></script>
+<script type="text/javascript">
+$(document).ready(function(){ 
+  $('.navbar').click(function(){
+    $('header nav').toggleClass('shownav');
+  });
+  var myWidth = 0;
+  function getSize(){
+    if( typeof( window.innerWidth ) == 'number' ) {
+      myWidth = window.innerWidth;
+    } else if( document.documentElement && document.documentElement.clientWidth) {
+      myWidth = document.documentElement.clientWidth;
+    };
+  };
+  var m = $('#main'),
+      a = $('#asidepart'),
+      c = $('.closeaside'),
+      o = $('.openaside');
+  $(window).resize(function(){
+    getSize(); 
+    if (myWidth >= 1024) {
+      $('header nav').removeClass('shownav');
+    }else
+    {
+      m.removeClass('moveMain');
+      a.css('display', 'block').removeClass('fadeOut');
+      o.css('display', 'none');
+      
+      $('#toc.toc-aside').css('display', 'none');
+        
+    }
+  });
+  c.click(function(){
+    a.addClass('fadeOut').css('display', 'none');
+    o.css('display', 'block').addClass('fadeIn');
+    m.addClass('moveMain');
+  });
+  o.click(function(){
+    o.css('display', 'none').removeClass('beforeFadeIn');
+    a.css('display', 'block').removeClass('fadeOut').addClass('fadeIn');      
+    m.removeClass('moveMain');
+  });
+  $(window).scroll(function(){
+    o.css("top",Math.max(80,260-$(this).scrollTop()));
+  });
+});
+</script>
+
+<script type="text/javascript">
+$(document).ready(function(){ 
+  var ai = $('.article-content>iframe'),
+      ae = $('.article-content>embed'),
+      t  = $('#toc'),
+      h  = $('article h2')
+      ah = $('article h2'),
+      ta = $('#toc.toc-aside'),
+      o  = $('.openaside'),
+      c  = $('.closeaside');
+  if(ai.length>0){
+    ai.wrap('<div class="video-container" />');
+  };
+  if(ae.length>0){
+   ae.wrap('<div class="video-container" />');
+  };
+  if(ah.length==0){
+    t.css('display','none');
+  }else{
+    c.click(function(){
+      ta.css('display', 'block').addClass('fadeIn');
+    });
+    o.click(function(){
+      ta.css('display', 'none');
+    });
+    $(window).scroll(function(){
+      ta.css("top",Math.max(140,320-$(this).scrollTop()));
+    });
+  };
+});
+</script>
+
+
+
+<script type="text/javascript">
+  var duoshuoQuery = {short_name:"radiotail"};
+  (function() {
+    var ds = document.createElement('script');
+    ds.type = 'text/javascript';ds.async = true;
+    ds.src = '//static.duoshuo.com/embed.js';
+    ds.charset = 'UTF-8';
+    (document.getElementsByTagName('head')[0] 
+    || document.getElementsByTagName('body')[0]).appendChild(ds);
+  })();
+</script> 
+
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css" media="screen" type="text/css">
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+<script type="text/javascript">
+$(document).ready(function(){ 
+  $('.article-content').each(function(i){
+    $(this).find('img').each(function(){
+      if ($(this).parent().hasClass('fancybox')) return;
+      var alt = this.alt;
+      if (alt) $(this).after('<span class="caption">' + alt + '</span>');
+      $(this).wrap('<a href="' + this.src + '" title="' + alt + '" class="fancybox"></a>');
+    });
+    $(this).find('.fancybox').each(function(){
+      $(this).attr('rel', 'article' + i);
+    });
+  });
+  if($.fancybox){
+    $('.fancybox').fancybox();
+  }
+}); 
+</script>
+
+
+
+<script type="text/javascript">
+(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+})(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+ga('create', 'UA-56244096-1', 'auto');  
+ga('send', 'pageview');
+</script>
+
+
+
+
+  </body>
+</html>
+

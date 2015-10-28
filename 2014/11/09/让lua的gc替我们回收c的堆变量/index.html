@@ -1,0 +1,391 @@
+
+ <!DOCTYPE HTML>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  
+    <title>让lua的gc替我们回收c的堆变量 | radiotail&#39;s blog</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=3, minimum-scale=1">
+    
+    <meta name="author" content="radiotail">
+    
+    <meta name="description" content="因为lua和c的内存回收管理方式不同，所以使用c+lua的结构做开发时我们可以自由选择c创建出的供lua使用的对象（我们这里说的对象都是c中分配的堆变量）到底该由lua还是c来释放。我参与的前一个项目因为历史遗留问题选择了让c来释放对象的方案，也就是写两个lua_CFunction来封装c中一个对象">
+    
+    
+    
+    
+    
+    <link rel="icon" href="/img/favicon.ico">
+    
+    
+    <link rel="apple-touch-icon" href="/img/pacman.jpg">
+    <link rel="apple-touch-icon-precomposed" href="/img/pacman.jpg">
+    
+    <link rel="stylesheet" href="/css/style.css" type="text/css">
+
+</head>
+
+  <body>
+    <header>
+      <div>
+		
+			<div id="imglogo">
+				<a href="/"><img src="/img/logo.svg" alt="radiotail&#39;s blog" title="radiotail&#39;s blog"/></a>
+			</div>
+			
+			<div id="textlogo">
+				<h1 class="site-name"><a href="/" title="radiotail&#39;s blog">radiotail&#39;s blog</a></h1>
+				<h2 class="blog-motto">疾如风，徐如林，侵略如火，不动如山</h2>
+			</div>
+			<div class="navbar"><a class="navbutton navmobile" href="#" title="菜单">
+			</a></div>
+			<nav class="animated">
+				<ul>
+					<ul>
+					 
+						<li><a href="/">Home</a></li>
+					
+						<li><a href="/archives">Archives</a></li>
+					
+						<li><a href="/about">About</a></li>
+					
+					<li>
+					
+					<form class="search" action="//baidu.com/s" method="get" accept-charset="utf-8">
+						<label>Search</label>
+						<input type="text" id="search" name="wd" autocomplete="off" maxlength="20" placeholder="搜索" />
+                        <input name=tn type=hidden value="bds">
+                        <input name=cl type=hidden value="3">
+                        <input name=ct type=hidden value="2097152">
+						<input type="hidden" name="si" value="radiotail.github.io">
+					</form>
+					
+					</li>
+				</ul>
+			</nav>			
+</div>
+
+    </header>
+    <div id="container">
+      <div id="main" class="post" itemscope itemprop="blogPost">
+	<article itemprop="articleBody"> 
+		<header class="article-info clearfix">
+  <h1 itemprop="name">
+    
+      <a href="/2014/11/09/让lua的gc替我们回收c的堆变量/" title="让lua的gc替我们回收c的堆变量" itemprop="url">让lua的gc替我们回收c的堆变量</a>
+  </h1>
+  <p class="article-author">By
+    
+      <a href="http://radiotail.github.io" title="radiotail">radiotail</a>
+    </p>
+  <p class="article-time">
+    <time datetime="2014-11-09T14:10:08.000Z" itemprop="datePublished">11月 9 2014</time>
+    更新日期:<time datetime="2014-11-09T14:38:37.000Z" itemprop="dateModified">11月 9 2014</time>
+    
+  </p>
+</header>
+
+	<div class="article-content">
+		
+		
+		<div id="toc" class="toc-article">
+			<strong class="toc-title">文章目录</strong>
+		
+		</div>
+		
+		<p>　　因为lua和c的内存回收管理方式不同，所以使用c+lua的结构做开发时我们可以自由选择c创建出的供lua使用的对象（我们这里说的对象都是c中分配的堆变量）到底该由lua还是c来释放。我参与的前一个项目因为历史遗留问题选择了让c来释放对象的方案，也就是写两个lua_CFunction来封装c中一个对象的创建和销毁给lua用，做法如下：</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div></pre></td><td class="code"><pre><div class="line">typedef struct Packet{</div><div class="line">};</div><div class="line"></div><div class="line">//c code</div><div class="line">int creatPacket(lua_State<span class="keyword">*</span> L) {</div><div class="line">	Packet<span class="keyword">*</span> pack = (Packet<span class="keyword">*</span>)malloc(sizeof(Packet));</div><div class="line">	Packet<span class="keyword">*</span><span class="keyword">*</span> ud = (Packet<span class="keyword">*</span><span class="keyword">*</span>)lua_newuserdata(L, sizeof(Packet<span class="keyword">*</span>));</div><div class="line">	<span class="keyword">*</span>ud = pack;</div><div class="line">	return 1;</div><div class="line">}</div><div class="line"></div><div class="line">int freePacket(lua_State<span class="keyword">*</span> L) {</div><div class="line">	Packet<span class="keyword">*</span><span class="keyword">*</span> ud = (Packet<span class="keyword">*</span><span class="keyword">*</span>)lua_touserdata(L, -1);</div><div class="line">	if( ud ) {</div><div class="line">		free(<span class="keyword">*</span>ud);</div><div class="line">	}</div><div class="line">	return 0;</div><div class="line">}</div><div class="line"></div><div class="line">static const luaL_Reg packetlib[] = {</div><div class="line">	{<span class="string">"creatPacket"</span>, creatPacket},</div><div class="line">  	{<span class="string">"freePacket"</span>, freePacket},</div><div class="line">  	{NULL, NULL}</div><div class="line">};</div><div class="line"></div><div class="line">int luaopen_packet(lua_State <span class="keyword">*</span>L) {</div><div class="line">    luaL_register(L, packetlib);</div><div class="line"></div><div class="line">    return 1;</div><div class="line">}</div></pre></td></tr></table></figure>
+
+
+
+<figure class="highlight"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line"><span class="comment">-- lua code</span></div><div class="line"><span class="keyword">local</span> pack = creatPacket()</div><div class="line">freePacket(pack)   <span class="comment">--要主动调用函数销毁对象</span></div></pre></td></tr></table></figure>
+
+<p>　　这样做很符合c的使用习惯，但是却不符合lua的使用习惯，当我们在lua中使用的时候很可能忘记主动调用销毁函数去销毁对象，从而造成内存泄漏。这并不是危言怂听，我们项目曾经就因为这个原因出现过内存泄漏。所以我后面下决心修改掉了这些东西，选择让lua的gc帮我们自动释放c创建出的对象，这样我们在使用lua的时候就能够完全按照lua的习惯去开发了，大家也不必再去担心使用lua时忘记释放c对象而导致内存泄漏。<br>　　让lua的gc替我们回收c创建出的对象其实很简单，基本原理就是为c对象所绑定的userdata分配一个存在自定义__gc方法的metatable，这个__gc方法的作用就是为我们回收c对象。下面是个简单的例子：</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div></pre></td><td class="code"><pre><div class="line"><span class="comment">//c code</span></div><div class="line"><span class="keyword">static</span> <span class="keyword">int</span> freePacket(lua_State* L) {</div><div class="line">	Packet** ud = (Packet**)lua_touserdata(L, -<span class="number">1</span>);</div><div class="line">	<span class="keyword">if</span>( ud ) {</div><div class="line">		free(*ud);</div><div class="line">	}</div><div class="line">	<span class="keyword">return</span> <span class="number">0</span>;</div><div class="line">}</div><div class="line"></div><div class="line"><span class="keyword">static</span> <span class="keyword">void</span> regPacketMetatable(lua_State *L) {</div><div class="line">	luaL_newmetatable(L, <span class="string">"packetMetatable"</span>);    <span class="comment">//为packet创建metatable</span></div><div class="line"></div><div class="line">	lua_pushstring(L, <span class="string">"__gc"</span>);</div><div class="line">	lua_pushcfunction(L, freePacket);</div><div class="line">	lua_rawset(L, -<span class="number">3</span>);                         <span class="comment">//注册__gc方法</span></div><div class="line"></div><div class="line">	lua_pop(L, <span class="number">1</span>);                             <span class="comment">//弹出元表</span></div><div class="line">}</div><div class="line"></div><div class="line"><span class="keyword">int</span> creatPacket(lua_State* L) {</div><div class="line">	Packet* pack = (Packet*)malloc(<span class="keyword">sizeof</span>(Packet));</div><div class="line">	Packet** ud = (Packet**)lua_newuserdata(L, <span class="keyword">sizeof</span>(Packet*));</div><div class="line">	*ud = pack;</div><div class="line"></div><div class="line">	luaL_getmetatable(L, <span class="string">"packetMetatable"</span>);   <span class="comment">//将元表放到栈顶 </span></div><div class="line">	lua_setmetatable(L, -<span class="number">2</span>);                   <span class="comment">//为userdata设置元表</span></div><div class="line"></div><div class="line">	<span class="keyword">return</span> <span class="number">1</span>;</div><div class="line">}</div><div class="line"></div><div class="line"><span class="keyword">static</span> <span class="keyword">const</span> luaL_Reg packetlib[] = {</div><div class="line">  	{<span class="string">"creatPacket"</span>, creatPacket},</div><div class="line">  	{<span class="literal">NULL</span>, <span class="literal">NULL</span>}</div><div class="line">};</div><div class="line"></div><div class="line"><span class="keyword">int</span> luaopen_packet(lua_State *L) {</div><div class="line">    luaL_register(L, packetlib);</div><div class="line">	regPacketMetatable(L);                     <span class="comment">//不要忘记先把元表创建出来</span></div><div class="line"></div><div class="line">    <span class="keyword">return</span> <span class="number">1</span>;</div><div class="line">}</div></pre></td></tr></table></figure>
+
+
+
+<figure class="highlight"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line"><span class="comment">-- lua code</span></div><div class="line"><span class="keyword">local</span> pack = creatPacket() <span class="comment">--不用再管他了，lua的gc会替我们搞定</span></div></pre></td></tr></table></figure>
+
+<p>　　整个代码只是增加了一些对元表和__gc元方法的处理，但却能让我们在lua中更简单的进行开发，不用再顾忌创建c对象会带来内存泄露的问题。为什么这样处理后packet对象会被lua的gc自动回收呢？原理主要是通过gc回收对象时触发__gc元方法实现的。首先，我们为绑定c对象所创建的userdata会被lua的gc所回收，而在gc进行回收时会触发元表中我们自定义的__gc元方法，我们自定义的这个__gc方法的作用就是释放掉userdata所绑定的c对象，因此我们就达到了让lua的gc替我们销毁对象的作用了。<br>　　这两种方法并不存在谁优谁略，只是看你想要什么样的效果。比如我要的就是开发更便利，消除忘记主动销毁对象带来的内存泄漏，所以我选择让lua的gc替我回收对象。而如果你的要求不同，比如你有个对象池，希望能够在不用对象时及时的放入对象池，那你最好还是自己手动调用回收函数。上面的代码是随手写的，没有测试过，不过思路就是这样的，大家只要明白思路就可以了，至于选择哪种方案，那就要你自己决定了。</p>
+  
+	</div>
+		<footer class="article-footer clearfix">
+
+  <div class="article-tags">
+  
+  <span></span> <a href="/tags/lua/">lua</a><a href="/tags/c/">c</a>
+  </div>
+
+
+<div class="article-categories">
+  <span></span>
+  <a class="article-category-link" href="/categories/lua/">lua</a>►<a class="article-category-link" href="/categories/lua/c/">c</a>
+</div>
+
+
+
+<div class="article-share" id="share">
+
+  
+<div class="jiathis_style">
+    <span class="jiathis_txt">分享到：</span>
+    <a class="jiathis_button_tsina">新浪微博</a>
+    <a class="jiathis_button_weixin">微信</a>
+    <a class="jiathis_button_twitter">Twitter</a>
+    <a class="jiathis_button_evernote">EverNote</a>
+    <a href="http://www.jiathis.com/share?uid=1501277" class="jiathis jiathis_txt jiathis_separator jtico jtico_jiathis" target="_blank">更多</a>
+</div>
+<script type="text/javascript" >
+    var jiathis_config={
+    data_track_clickback:true,
+    sm:"copy,renren,cqq",
+    pic:"",
+    summary:"",
+    
+  </script> 
+<script type="text/javascript" src="//v3.jiathis.com/code/jia.js?uid=
+" charset="utf-8"></script>      
+
+
+</div>
+</footer>   	       
+	</article>
+	
+<nav class="article-nav clearfix">
+ 
+ <div class="prev" >
+ <a href="/2014/11/23/技术测试遇到封包攻击/" title="技术测试遇到封包攻击">
+  <strong>PREVIOUS:</strong><br/>
+  <span>
+  技术测试遇到封包攻击</span>
+</a>
+</div>
+
+
+<div class="next">
+<a href="/2014/11/03/查找lua层的内存泄漏问题/"  title="查找lua层的内存泄漏问题">
+ <strong>NEXT:</strong><br/> 
+ <span>查找lua层的内存泄漏问题
+</span>
+</a>
+</div>
+
+</nav>
+
+	
+<section class="comment">
+	<div class="ds-thread" data-thread-key="2014/11/09/让lua的gc替我们回收c的堆变量/" data-title="让lua的gc替我们回收c的堆变量" data-url="http://radiotail.github.io/2014/11/09/让lua的gc替我们回收c的堆变量/"></div>
+</section>
+
+
+</div>  
+      <div class="openaside"><a class="navbutton" href="#" title="显示侧边栏"></a></div>
+
+  <div id="toc" class="toc-aside">
+  <strong class="toc-title">文章目录</strong>
+  
+  </div>
+
+<div id="asidepart">
+<div class="closeaside"><a class="closebutton" href="#" title="隐藏侧边栏"></a></div>
+<aside class="clearfix">
+
+  
+<div class="categorieslist">
+	<p class="asidetitle">分类</p>
+		<ul>
+		
+			<li><a href="/categories/lua/c/" title="c">c<sup>2</sup></a></li>
+		
+			<li><a href="/categories/lua/" title="lua">lua<sup>4</sup></a></li>
+		
+			<li><a href="/categories/随笔/" title="随笔">随笔<sup>2</sup></a></li>
+		
+		</ul>
+</div>
+
+
+  
+  <div class="tagcloudlist">
+    <p class="asidetitle">标签云</p>
+    <div class="tagcloudlist clearfix">
+       <a href="/tags/c/" style="font-size: 10.00px;">c</a><a href="/tags/lua/" style="font-size: 20.00px;">lua</a><a href="/tags/随笔/" style="font-size: 10.00px;">随笔</a>
+    </div>
+  </div>
+
+
+  
+  <div class="archiveslist">
+    <p class="asidetitle"><a href="/archives">归档</a></p>
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2015/10/">October 2015</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2014/11/">November 2014</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2014/10/">October 2014</a><span class="archive-list-count">2</span></li></ul>
+  </div>
+
+
+</aside>
+</div>
+    </div>
+    <footer><div id="footer" >
+	
+	<div class="line">
+		<span></span>
+		<div class="author"></div>
+	</div>
+	
+	
+	<section class="info">
+		<p> 要得到真正的快乐，我们只需拥有三样东西： <br/>
+			有想做的事，有值得爱的人，有美丽的梦。</p>
+	</section>
+	 
+	<div class="social-font" class="clearfix">
+		
+		<a href="http://weibo.com/1833264473" target="_blank" title="weibo"></a>
+		
+		
+		
+		<a href="https://github.com/radiotail" target="_blank" title="github"></a>
+		
+		
+	</div>
+		<p class="copyright">Powered by <a href="http://hexo.io" target="_blank" title="hexo">hexo</a> and Theme by <a href="https://github.com/wizicer/iceman" target="_blank" title="Iceman">Iceman</a> © 2015 
+		
+		<a href="http://radiotail.github.io" target="_blank" title="radiotail">radiotail</a>
+		
+		</p>
+</div>
+</footer>
+    <script src="/js/jquery-2.1.0.min.js"></script>
+<script type="text/javascript">
+$(document).ready(function(){ 
+  $('.navbar').click(function(){
+    $('header nav').toggleClass('shownav');
+  });
+  var myWidth = 0;
+  function getSize(){
+    if( typeof( window.innerWidth ) == 'number' ) {
+      myWidth = window.innerWidth;
+    } else if( document.documentElement && document.documentElement.clientWidth) {
+      myWidth = document.documentElement.clientWidth;
+    };
+  };
+  var m = $('#main'),
+      a = $('#asidepart'),
+      c = $('.closeaside'),
+      o = $('.openaside');
+  $(window).resize(function(){
+    getSize(); 
+    if (myWidth >= 1024) {
+      $('header nav').removeClass('shownav');
+    }else
+    {
+      m.removeClass('moveMain');
+      a.css('display', 'block').removeClass('fadeOut');
+      o.css('display', 'none');
+      
+      $('#toc.toc-aside').css('display', 'none');
+        
+    }
+  });
+  c.click(function(){
+    a.addClass('fadeOut').css('display', 'none');
+    o.css('display', 'block').addClass('fadeIn');
+    m.addClass('moveMain');
+  });
+  o.click(function(){
+    o.css('display', 'none').removeClass('beforeFadeIn');
+    a.css('display', 'block').removeClass('fadeOut').addClass('fadeIn');      
+    m.removeClass('moveMain');
+  });
+  $(window).scroll(function(){
+    o.css("top",Math.max(80,260-$(this).scrollTop()));
+  });
+});
+</script>
+
+<script type="text/javascript">
+$(document).ready(function(){ 
+  var ai = $('.article-content>iframe'),
+      ae = $('.article-content>embed'),
+      t  = $('#toc'),
+      h  = $('article h2')
+      ah = $('article h2'),
+      ta = $('#toc.toc-aside'),
+      o  = $('.openaside'),
+      c  = $('.closeaside');
+  if(ai.length>0){
+    ai.wrap('<div class="video-container" />');
+  };
+  if(ae.length>0){
+   ae.wrap('<div class="video-container" />');
+  };
+  if(ah.length==0){
+    t.css('display','none');
+  }else{
+    c.click(function(){
+      ta.css('display', 'block').addClass('fadeIn');
+    });
+    o.click(function(){
+      ta.css('display', 'none');
+    });
+    $(window).scroll(function(){
+      ta.css("top",Math.max(140,320-$(this).scrollTop()));
+    });
+  };
+});
+</script>
+
+
+
+<script type="text/javascript">
+  var duoshuoQuery = {short_name:"radiotail"};
+  (function() {
+    var ds = document.createElement('script');
+    ds.type = 'text/javascript';ds.async = true;
+    ds.src = '//static.duoshuo.com/embed.js';
+    ds.charset = 'UTF-8';
+    (document.getElementsByTagName('head')[0] 
+    || document.getElementsByTagName('body')[0]).appendChild(ds);
+  })();
+</script> 
+
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css" media="screen" type="text/css">
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+<script type="text/javascript">
+$(document).ready(function(){ 
+  $('.article-content').each(function(i){
+    $(this).find('img').each(function(){
+      if ($(this).parent().hasClass('fancybox')) return;
+      var alt = this.alt;
+      if (alt) $(this).after('<span class="caption">' + alt + '</span>');
+      $(this).wrap('<a href="' + this.src + '" title="' + alt + '" class="fancybox"></a>');
+    });
+    $(this).find('.fancybox').each(function(){
+      $(this).attr('rel', 'article' + i);
+    });
+  });
+  if($.fancybox){
+    $('.fancybox').fancybox();
+  }
+}); 
+</script>
+
+
+
+<script type="text/javascript">
+(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+})(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+ga('create', 'UA-56244096-1', 'auto');  
+ga('send', 'pageview');
+</script>
+
+
+
+
+  </body>
+</html>
+

@@ -1,0 +1,413 @@
+
+ <!DOCTYPE HTML>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  
+    <title>Eluna——简单,轻量级的c++开发语言和Lua绑定库 | radiotail&#39;s blog</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=3, minimum-scale=1">
+    
+    <meta name="author" content="radiotail">
+    
+    <meta name="description" content="最初写这个东西只是想深入了解一下C++和Lua的交互细节，顺便当做自己业余练练手，所以也不想把它做得很庞大，只是实现了一些我在项目中常会用到的功能。算然不想做的太庞大，但却想试着让这个库更简单，更高效些。在此目的下我花了很长的时间才写完这个简单的库，一直以自己很忙为借口不去写，非常惭愧啊。。。不过还">
+    
+    
+    
+    
+    
+    <link rel="icon" href="/img/favicon.ico">
+    
+    
+    <link rel="apple-touch-icon" href="/img/pacman.jpg">
+    <link rel="apple-touch-icon-precomposed" href="/img/pacman.jpg">
+    
+    <link rel="stylesheet" href="/css/style.css" type="text/css">
+
+</head>
+
+  <body>
+    <header>
+      <div>
+		
+			<div id="imglogo">
+				<a href="/"><img src="/img/logo.svg" alt="radiotail&#39;s blog" title="radiotail&#39;s blog"/></a>
+			</div>
+			
+			<div id="textlogo">
+				<h1 class="site-name"><a href="/" title="radiotail&#39;s blog">radiotail&#39;s blog</a></h1>
+				<h2 class="blog-motto">疾如风，徐如林，侵略如火，不动如山</h2>
+			</div>
+			<div class="navbar"><a class="navbutton navmobile" href="#" title="菜单">
+			</a></div>
+			<nav class="animated">
+				<ul>
+					<ul>
+					 
+						<li><a href="/">Home</a></li>
+					
+						<li><a href="/archives">Archives</a></li>
+					
+						<li><a href="/about">About</a></li>
+					
+					<li>
+					
+					<form class="search" action="//baidu.com/s" method="get" accept-charset="utf-8">
+						<label>Search</label>
+						<input type="text" id="search" name="wd" autocomplete="off" maxlength="20" placeholder="搜索" />
+                        <input name=tn type=hidden value="bds">
+                        <input name=cl type=hidden value="3">
+                        <input name=ct type=hidden value="2097152">
+						<input type="hidden" name="si" value="radiotail.github.io">
+					</form>
+					
+					</li>
+				</ul>
+			</nav>			
+</div>
+
+    </header>
+    <div id="container">
+      <div id="main" class="post" itemscope itemprop="blogPost">
+	<article itemprop="articleBody"> 
+		<header class="article-info clearfix">
+  <h1 itemprop="name">
+    
+      <a href="/2014/10/28/Eluna发布/" title="Eluna——简单,轻量级的c++开发语言和Lua绑定库" itemprop="url">Eluna——简单,轻量级的c++开发语言和Lua绑定库</a>
+  </h1>
+  <p class="article-author">By
+    
+      <a href="http://radiotail.github.io" title="radiotail">radiotail</a>
+    </p>
+  <p class="article-time">
+    <time datetime="2014-10-28T15:40:13.000Z" itemprop="datePublished">10月 28 2014</time>
+    更新日期:<time datetime="2015-01-30T17:41:04.000Z" itemprop="dateModified">1月 31 2015</time>
+    
+  </p>
+</header>
+
+	<div class="article-content">
+		
+		
+		<div id="toc" class="toc-article">
+			<strong class="toc-title">文章目录</strong>
+		<ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#简介:"><span class="toc-number">1.</span> <span class="toc-text">简介:</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#使用:"><span class="toc-number">2.</span> <span class="toc-text">使用:</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#绑定C++类:："><span class="toc-number">2.1.</span> <span class="toc-text">绑定C++类:：</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#绑定c++类成员函数："><span class="toc-number">2.2.</span> <span class="toc-text">绑定c++类成员函数：</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#绑定c++函数："><span class="toc-number">2.3.</span> <span class="toc-text">绑定c++函数：</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#绑定Lua函数："><span class="toc-number">2.4.</span> <span class="toc-text">绑定Lua函数：</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#绑定Lua中的Table类型："><span class="toc-number">2.5.</span> <span class="toc-text">绑定Lua中的Table类型：</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#注意事项:"><span class="toc-number">3.</span> <span class="toc-text">注意事项:</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#编译使用"><span class="toc-number">4.</span> <span class="toc-text">编译使用</span></a></li></ol>
+		</div>
+		
+		<p>　　最初写这个东西只是想深入了解一下C++和Lua的交互细节，顺便当做自己业余练练手，所以也不想把它做得很庞大，只是实现了一些我在项目中常会用到的功能。算然不想做的太庞大，但却想试着让这个库更简单，更高效些。在此目的下我花了很长的时间才写完这个简单的库，一直以自己很忙为借口不去写，非常惭愧啊。。。不过还好，最终还是完成了，没有半途而废。<br>　　目前这个工程已经从google code迁到了github中，主页为：<a href="https://github.com/radiotail/eluna" target="_blank" rel="external">https://github.com/radiotail/eluna</a></p>
+<p>下面就简单介绍一下这个库。 </p>
+<h2 id="简介:">简介:</h2>
+<p>　　ELuna是一个简单的，轻量级的用来完成C++和Lua之间相互绑定的工程。它不依赖于任何第三方库，主要思想来源于一个简单的工程Luna，其最开始的目的也是在Luna做一些扩展，让使用者在编写代码时不必再关注C++和Lua之间交互时的细节，只需调用Eluna提供的简单的API便能轻松的完成绑定c++类，成员函数，函数或绑定Lua函数，Table的任务。 </p>
+<p>　　1.1版本之前，ELuna采用了和Luna完全相同的绑定C++成员函数的方法，既在创建对象时返回一个对象的Table，并将对象所有的成员函数复制到对象Table中的方法。这种方法有一个优势是在调用成员方法时不必查找元表，来找到这个成员方法，所以调用速度很快。但却也有一个明显的缺点就是在创建对象时需要创建一个table，并复制所有的函数到table中，因此对象的创建速度会很慢。当然，如果你的对象很少被创建，大量时间都是在调用它的成员函数的话，用这种方法可能是比较不错的选择。因为这个方法在创建对象时效率不高，所以在之后的版本我做了一些调整，不再在创建对象的时候创建一个table，并复制所有的成员函数到table中了，而是在注册成员函数时，将成员函数放到对象的元表中，通过元表的__index元方法来找到这个函数并调用。这样就大大提高了创建对象的速度，不过成员方法的调用速度会略有些慢，到底怎样取舍就看自己的需求了。 </p>
+<p>　　目前ELuna经过多个版本的修改和改进之后已经稳定下来了，但也许还存在着一些我没有发现的bug，如果大家发现什么问题请与我联系。当然现在的Eluna还不能支持所有的功能，比如说绑定成员数据的功能。没有加入这些功能的原因主要是因为在决定都开发哪些功能时，我参考了以往自己在项目开发中的经验，那些没有开发的功能基本很少会被用到，或是可以简单地通过其他途径来实现，如绑定成员数据这种功能，我们完全可以通过注册一个get和set函数来解决这个问题，当然如果您真的需要这个功能，自己添加也比较简单。 </p>
+<h2 id="使用:">使用:</h2>
+<p>下面主要展示几种简单的功能： </p>
+<h3 id="绑定C++类:：">绑定C++类:：</h3>
+<p>　　使用ELuna::registerClass( lua_State, className, constructor) 函数绑定一个C++类。第一个参数是lua_state, 第二个参数是类在Lua中的名字。第三个参数constructor是这个类要用到的构造函数，通过传递具体的ELuna::constructor<cppclass, ......=""> 函数来为这个类设置好一个构造函数，这个函数模板参数中的第一个参数是构造函数所属的类，后面的参数为构造函数的参数类型列表。如你需要为类Test设置一个参数为int的构造函数，则须传递ELuna::constructor<test,int> 到registerClass函数中，模板参数中的int就是这个类的构造函数所需的参数类型。在Lua中创建对象时需这样写: test = Test(1)。 </test,int></cppclass,></p>
+<h3 id="绑定c++类成员函数：">绑定c++类成员函数：</h3>
+<p>　　使用ELuna::registerMethod(lua_State, funcName, func) 函数绑定一个c++类成员函数。第一个参数同上面的函数。第二个参数是函数在Lua中的名字。第三个参数是这个函数的地址。如你要注册Test类的foo函数到Lua中，应利用ELuna::registerMethod<test>(L,”foo”, &amp;Test::foo)来注册函数。在Lua中的调用为test:foo()。 </test></p>
+<h3 id="绑定c++函数：">绑定c++函数：</h3>
+<p>　　使用ELuna::registerFunction(lua_State, funcName, func)函数c++函数。这个函数中参数的意义同registerMethod函数。例如C++中有一函数foo，利ELuna::registerFunction(L,“foo”, &amp;foo)注册这个函数，在Lua调用为foo()。 </p>
+<h3 id="绑定Lua函数：">绑定Lua函数：</h3>
+<p>　　使用ELuna::LuaFunction类为Lua函数生成一个相应的C++中的对象，调用函数通过使用类的”()”方法来实现。比如在Lua中有一个函数foo(a)，其中参数a是number型，且无返回值，则在C++中的绑定方法为先利用 ELuna::LuaFunction<void> luaFoo(L, “foo”)创建一个C++对象，其中模板参数是这个Lua函数的返回值类型，因为foo无返回值，所以为void，LuaFunction的第一个参数是lua_state，第二个参数是这个Lua函数的名字。在C++中的调用方式为luaFoo(1)。 </void></p>
+<h3 id="绑定Lua中的Table类型：">绑定Lua中的Table类型：</h3>
+<p>　　使用ELuna::LuaTable类生成一个Lua Table在c++中的对象，读取插入元素通过”get”, “set”方法。比如Lua中有一个Table变量luaTable = {“hello”}，在C++中使用ELuna::LuaTable luaTable(L, “luaTable”)来为luaTable在C++中生成一个对象，调用luaTable.get<char*>(1)来取得luaTable中key为1的字符串”hello”，其中模板参数char*为get返回的value类型。调用luaTable.set(2, “world”)来为luaTable插入一个key=2,value=”world”的键值对。<br>java面是一个实际的例子： </char*></p>
+<figure class="highlight"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div><div class="line">76</div><div class="line">77</div><div class="line">78</div><div class="line">79</div><div class="line">80</div><div class="line">81</div></pre></td><td class="code"><pre><div class="line"><span class="comment">//sample.cpp    </span></div><div class="line"><span class="preprocessor">#<span class="keyword">include</span> &lt;stdio.h&gt;    </span></div><div class="line"><span class="preprocessor">#<span class="keyword">include</span> &lt;string.h&gt;    </span></div><div class="line"><span class="preprocessor">#<span class="keyword">include</span> "ELuna.h"    </span></div><div class="line">    </div><div class="line"><span class="comment">//define a class    </span></div><div class="line"><span class="keyword">class</span> CPPClass    </div><div class="line">{    </div><div class="line"><span class="keyword">public</span>:    </div><div class="line">        CPPClass(<span class="keyword">const</span> <span class="keyword">char</span>* name): m_name(name){    </div><div class="line">                <span class="built_in">printf</span>(<span class="string">"%s Constructor!\n"</span>, name);    </div><div class="line">        }    </div><div class="line">        ~CPPClass(){    </div><div class="line">                <span class="built_in">printf</span>(<span class="string">"%s Destructor!\n"</span>, m_name);    </div><div class="line">        }    </div><div class="line">    </div><div class="line">        <span class="comment">//define method    </span></div><div class="line">        <span class="keyword">void</span> cppPrint(<span class="keyword">const</span> <span class="keyword">char</span>* word) {    </div><div class="line">                <span class="built_in">printf</span>(<span class="string">"%s: %s\n"</span>, m_name, word);    </div><div class="line">        }    </div><div class="line">    </div><div class="line">        <span class="keyword">int</span> cppSum(<span class="keyword">int</span> a, <span class="keyword">int</span> b){    </div><div class="line">                <span class="keyword">return</span> a + b;    </div><div class="line">        }    </div><div class="line"><span class="keyword">private</span>:    </div><div class="line">        <span class="keyword">const</span> <span class="keyword">char</span>* m_name;    </div><div class="line">};    </div><div class="line">    </div><div class="line"><span class="comment">//define function    </span></div><div class="line"><span class="keyword">void</span> cppPrint(<span class="keyword">char</span>* str) {    </div><div class="line">        <span class="built_in">printf</span>(<span class="string">"cppPrint: %s\n"</span>, str);    </div><div class="line">}    </div><div class="line">    </div><div class="line"><span class="keyword">int</span> cppSum(<span class="keyword">int</span> a, <span class="keyword">int</span> b){    </div><div class="line">        <span class="keyword">return</span> a + b;    </div><div class="line">}    </div><div class="line">    </div><div class="line"><span class="keyword">void</span> testCPP(lua_State* L) {    </div><div class="line">        <span class="comment">//register a class and it's constructor. indicate all constructor's param type    </span></div><div class="line">        ELuna::registerClass&lt;CPPClass&gt;(L, <span class="string">"CPPClass"</span>, ELuna::constructor&lt;CPPClass, <span class="keyword">const</span> <span class="keyword">char</span>* &gt;);    </div><div class="line">        <span class="comment">//register a method    </span></div><div class="line">        ELuna::registerMethod&lt;CPPClass&gt;(L, <span class="string">"cppPrint"</span>, &CPPClass::cppPrint);    </div><div class="line">        ELuna::registerMethod&lt;CPPClass&gt;(L, <span class="string">"cppSum"</span>, &CPPClass::cppSum);    </div><div class="line">    </div><div class="line">        <span class="comment">//register a function    </span></div><div class="line">        ELuna::registerFunction(L, <span class="string">"cppPrint"</span>, &cppPrint);    </div><div class="line">        ELuna::registerFunction(L, <span class="string">"cppSum"</span>, &cppSum);    </div><div class="line">}    </div><div class="line">    </div><div class="line"><span class="keyword">void</span> testLua(lua_State* L) {    </div><div class="line">        <span class="comment">//new a LuaFunction object to bind lua function. indicate return value type    </span></div><div class="line">        ELuna::LuaFunction&lt;<span class="keyword">void</span>&gt; luaPrint(L, <span class="string">"luaPrint"</span>);    </div><div class="line">        ELuna::LuaFunction&lt;<span class="keyword">int</span>&gt; luaSum(L, <span class="string">"luaSum"</span>);    </div><div class="line">    </div><div class="line">        <span class="comment">//run Luafunction's () to call lua function    </span></div><div class="line">        luaPrint(<span class="string">"hello world"</span>);    </div><div class="line">        <span class="built_in">printf</span>(<span class="string">"luaSum: %d\n"</span>, luaSum(<span class="number">1</span>,<span class="number">2</span>));    </div><div class="line">    </div><div class="line">        <span class="comment">//register a lua table    </span></div><div class="line">        ELuna::LuaTable luaTable(L, <span class="string">"luaTable"</span>);    </div><div class="line">        <span class="comment">//set table's key and value    </span></div><div class="line">        luaTable.<span class="built_in">set</span>(<span class="number">2</span>, <span class="string">"world"</span>);    </div><div class="line">        <span class="built_in">printf</span>(<span class="string">"LuaTable: %s %s\n"</span>, luaTable.get&lt;<span class="keyword">char</span>*&gt;(<span class="number">1</span>), luaTable.get&lt;<span class="keyword">char</span>*&gt;(<span class="number">2</span>));    </div><div class="line">}    </div><div class="line">    </div><div class="line"><span class="keyword">const</span> <span class="keyword">char</span> *fileName = <span class="string">"sample.lua"</span>;    </div><div class="line">    </div><div class="line"><span class="keyword">int</span> main()    </div><div class="line">{    </div><div class="line">        lua_State *L = ELuna::openLua();    </div><div class="line">    </div><div class="line">        testCPP(L);    </div><div class="line">    </div><div class="line">        ELuna::doFile(L, fileName);    </div><div class="line">    </div><div class="line">        testLua(L);    </div><div class="line">        ELuna::closeLua(L);    </div><div class="line">    </div><div class="line">        system(<span class="string">"pause"</span>);    </div><div class="line">        <span class="keyword">return</span> <span class="number">0</span>;    </div><div class="line">}</div></pre></td></tr></table></figure>
+
+
+
+<figure class="highlight"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div></pre></td><td class="code"><pre><div class="line"><span class="regexp">//////</span><span class="regexp">//////</span><span class="regexp">//////</span><span class="regexp">//////</span><span class="regexp">//////</span><span class="regexp">//////</span><span class="regexp">//////</span><span class="regexp">//////</span><span class="regexp">//////</span><span class="regexp">//////</span><span class="regexp">//////</span><span class="regexp">//////</span>/    </div><div class="line"><span class="regexp">//</span>sample.lua    </div><div class="line">--<span class="keyword">new</span> a <span class="class"><span class="keyword">class</span>    </span></div><div class="line">local cppClass = CPPClass(<span class="string">"cppClass"</span>)    </div><div class="line">--call cpp method    </div><div class="line"><span class="attribute">cppClass</span>:cppPrint(<span class="string">"Hello world!"</span>)    </div><div class="line"><span class="built_in">print</span>(<span class="string">"CPPClass's cppSum:"</span>, <span class="attribute">cppClass</span>:cppSum(<span class="number">1</span>,<span class="number">2</span>))    </div><div class="line">    </div><div class="line">--call cpp <span class="reserved">function</span>    </div><div class="line">cppPrint(<span class="string">"Hello world!"</span>)    </div><div class="line"><span class="built_in">print</span>(<span class="string">"cppSum:"</span>, cppSum(<span class="number">1</span>,<span class="number">2</span>))    </div><div class="line">    </div><div class="line">--define lua <span class="reserved">function</span>    </div><div class="line"><span class="reserved">function</span> luaPrint(str)    </div><div class="line">        <span class="built_in">print</span>(<span class="string">"luaPrint:"</span>, str)    </div><div class="line">end    </div><div class="line">    </div><div class="line"><span class="reserved">function</span> luaSum(a, b)    </div><div class="line">        <span class="keyword">return</span> a + b    </div><div class="line">end    </div><div class="line">    </div><div class="line">--define table    </div><div class="line">luaTable = {<span class="string">"hello"</span>}</div></pre></td></tr></table></figure>
+
+<h2 id="注意事项:">注意事项:</h2>
+<p>　　传递对象或对象引用给LuaFunction的效果一样，都会创建临时对象。如果你不希望传递参数给LuaFunction时创建临时对象，可以传递指针。 </p>
+<h2 id="编译使用">编译使用</h2>
+<pre><code>Eluna支持Windows, Unix, OS X。测试工程文件使用p<span class="comment">remake4来生成，过程很简单。</span>
+</code></pre><ol>
+<li>安装lua。</li>
+<li>修改premake4.lua文件中的”links”，使它指向你的lua库地址。</li>
+<li>使用premake4生成工程文件。</li>
+</ol>
+<p>如：</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">$ <span class="keyword">cd</span> p<span class="comment">remake4</span></div><div class="line">$ p<span class="comment">remake4 action</span></div></pre></td></tr></table></figure>
+
+<p>关于premake的使用可以查看:<a href="http://industriousone.com/premake-quick-start" target="_blank" rel="external">Premake Quick Start</a>.</p>
+  
+	</div>
+		<footer class="article-footer clearfix">
+
+  <div class="article-tags">
+  
+  <span></span> <a href="/tags/lua/">lua</a><a href="/tags/c/">c</a>
+  </div>
+
+
+<div class="article-categories">
+  <span></span>
+  <a class="article-category-link" href="/categories/lua/">lua</a>►<a class="article-category-link" href="/categories/lua/c/">c</a>
+</div>
+
+
+
+<div class="article-share" id="share">
+
+  
+<div class="jiathis_style">
+    <span class="jiathis_txt">分享到：</span>
+    <a class="jiathis_button_tsina">新浪微博</a>
+    <a class="jiathis_button_weixin">微信</a>
+    <a class="jiathis_button_twitter">Twitter</a>
+    <a class="jiathis_button_evernote">EverNote</a>
+    <a href="http://www.jiathis.com/share?uid=1501277" class="jiathis jiathis_txt jiathis_separator jtico jtico_jiathis" target="_blank">更多</a>
+</div>
+<script type="text/javascript" >
+    var jiathis_config={
+    data_track_clickback:true,
+    sm:"copy,renren,cqq",
+    pic:"",
+    summary:"",
+    
+  </script> 
+<script type="text/javascript" src="//v3.jiathis.com/code/jia.js?uid=
+" charset="utf-8"></script>      
+
+
+</div>
+</footer>   	       
+	</article>
+	
+<nav class="article-nav clearfix">
+ 
+ <div class="prev" >
+ <a href="/2014/11/03/查找lua层的内存泄漏问题/" title="查找lua层的内存泄漏问题">
+  <strong>PREVIOUS:</strong><br/>
+  <span>
+  查找lua层的内存泄漏问题</span>
+</a>
+</div>
+
+
+<div class="next">
+<a href="/2014/10/27/新博客上线/"  title="新博客上线">
+ <strong>NEXT:</strong><br/> 
+ <span>新博客上线
+</span>
+</a>
+</div>
+
+</nav>
+
+	
+<section class="comment">
+	<div class="ds-thread" data-thread-key="2014/10/28/Eluna发布/" data-title="Eluna——简单,轻量级的c++开发语言和Lua绑定库" data-url="http://radiotail.github.io/2014/10/28/Eluna发布/"></div>
+</section>
+
+
+</div>  
+      <div class="openaside"><a class="navbutton" href="#" title="显示侧边栏"></a></div>
+
+  <div id="toc" class="toc-aside">
+  <strong class="toc-title">文章目录</strong>
+  <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#简介:"><span class="toc-number">1.</span> <span class="toc-text">简介:</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#使用:"><span class="toc-number">2.</span> <span class="toc-text">使用:</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#绑定C++类:："><span class="toc-number">2.1.</span> <span class="toc-text">绑定C++类:：</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#绑定c++类成员函数："><span class="toc-number">2.2.</span> <span class="toc-text">绑定c++类成员函数：</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#绑定c++函数："><span class="toc-number">2.3.</span> <span class="toc-text">绑定c++函数：</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#绑定Lua函数："><span class="toc-number">2.4.</span> <span class="toc-text">绑定Lua函数：</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#绑定Lua中的Table类型："><span class="toc-number">2.5.</span> <span class="toc-text">绑定Lua中的Table类型：</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#注意事项:"><span class="toc-number">3.</span> <span class="toc-text">注意事项:</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#编译使用"><span class="toc-number">4.</span> <span class="toc-text">编译使用</span></a></li></ol>
+  </div>
+
+<div id="asidepart">
+<div class="closeaside"><a class="closebutton" href="#" title="隐藏侧边栏"></a></div>
+<aside class="clearfix">
+
+  
+<div class="categorieslist">
+	<p class="asidetitle">分类</p>
+		<ul>
+		
+			<li><a href="/categories/lua/c/" title="c">c<sup>2</sup></a></li>
+		
+			<li><a href="/categories/lua/" title="lua">lua<sup>4</sup></a></li>
+		
+			<li><a href="/categories/随笔/" title="随笔">随笔<sup>2</sup></a></li>
+		
+		</ul>
+</div>
+
+
+  
+  <div class="tagcloudlist">
+    <p class="asidetitle">标签云</p>
+    <div class="tagcloudlist clearfix">
+       <a href="/tags/c/" style="font-size: 10.00px;">c</a><a href="/tags/lua/" style="font-size: 20.00px;">lua</a><a href="/tags/随笔/" style="font-size: 10.00px;">随笔</a>
+    </div>
+  </div>
+
+
+  
+  <div class="archiveslist">
+    <p class="asidetitle"><a href="/archives">归档</a></p>
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2015/10/">October 2015</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2014/11/">November 2014</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2014/10/">October 2014</a><span class="archive-list-count">2</span></li></ul>
+  </div>
+
+
+</aside>
+</div>
+    </div>
+    <footer><div id="footer" >
+	
+	<div class="line">
+		<span></span>
+		<div class="author"></div>
+	</div>
+	
+	
+	<section class="info">
+		<p> 要得到真正的快乐，我们只需拥有三样东西： <br/>
+			有想做的事，有值得爱的人，有美丽的梦。</p>
+	</section>
+	 
+	<div class="social-font" class="clearfix">
+		
+		<a href="http://weibo.com/1833264473" target="_blank" title="weibo"></a>
+		
+		
+		
+		<a href="https://github.com/radiotail" target="_blank" title="github"></a>
+		
+		
+	</div>
+		<p class="copyright">Powered by <a href="http://hexo.io" target="_blank" title="hexo">hexo</a> and Theme by <a href="https://github.com/wizicer/iceman" target="_blank" title="Iceman">Iceman</a> © 2015 
+		
+		<a href="http://radiotail.github.io" target="_blank" title="radiotail">radiotail</a>
+		
+		</p>
+</div>
+</footer>
+    <script src="/js/jquery-2.1.0.min.js"></script>
+<script type="text/javascript">
+$(document).ready(function(){ 
+  $('.navbar').click(function(){
+    $('header nav').toggleClass('shownav');
+  });
+  var myWidth = 0;
+  function getSize(){
+    if( typeof( window.innerWidth ) == 'number' ) {
+      myWidth = window.innerWidth;
+    } else if( document.documentElement && document.documentElement.clientWidth) {
+      myWidth = document.documentElement.clientWidth;
+    };
+  };
+  var m = $('#main'),
+      a = $('#asidepart'),
+      c = $('.closeaside'),
+      o = $('.openaside');
+  $(window).resize(function(){
+    getSize(); 
+    if (myWidth >= 1024) {
+      $('header nav').removeClass('shownav');
+    }else
+    {
+      m.removeClass('moveMain');
+      a.css('display', 'block').removeClass('fadeOut');
+      o.css('display', 'none');
+      
+      $('#toc.toc-aside').css('display', 'none');
+        
+    }
+  });
+  c.click(function(){
+    a.addClass('fadeOut').css('display', 'none');
+    o.css('display', 'block').addClass('fadeIn');
+    m.addClass('moveMain');
+  });
+  o.click(function(){
+    o.css('display', 'none').removeClass('beforeFadeIn');
+    a.css('display', 'block').removeClass('fadeOut').addClass('fadeIn');      
+    m.removeClass('moveMain');
+  });
+  $(window).scroll(function(){
+    o.css("top",Math.max(80,260-$(this).scrollTop()));
+  });
+});
+</script>
+
+<script type="text/javascript">
+$(document).ready(function(){ 
+  var ai = $('.article-content>iframe'),
+      ae = $('.article-content>embed'),
+      t  = $('#toc'),
+      h  = $('article h2')
+      ah = $('article h2'),
+      ta = $('#toc.toc-aside'),
+      o  = $('.openaside'),
+      c  = $('.closeaside');
+  if(ai.length>0){
+    ai.wrap('<div class="video-container" />');
+  };
+  if(ae.length>0){
+   ae.wrap('<div class="video-container" />');
+  };
+  if(ah.length==0){
+    t.css('display','none');
+  }else{
+    c.click(function(){
+      ta.css('display', 'block').addClass('fadeIn');
+    });
+    o.click(function(){
+      ta.css('display', 'none');
+    });
+    $(window).scroll(function(){
+      ta.css("top",Math.max(140,320-$(this).scrollTop()));
+    });
+  };
+});
+</script>
+
+
+
+<script type="text/javascript">
+  var duoshuoQuery = {short_name:"radiotail"};
+  (function() {
+    var ds = document.createElement('script');
+    ds.type = 'text/javascript';ds.async = true;
+    ds.src = '//static.duoshuo.com/embed.js';
+    ds.charset = 'UTF-8';
+    (document.getElementsByTagName('head')[0] 
+    || document.getElementsByTagName('body')[0]).appendChild(ds);
+  })();
+</script> 
+
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css" media="screen" type="text/css">
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+<script type="text/javascript">
+$(document).ready(function(){ 
+  $('.article-content').each(function(i){
+    $(this).find('img').each(function(){
+      if ($(this).parent().hasClass('fancybox')) return;
+      var alt = this.alt;
+      if (alt) $(this).after('<span class="caption">' + alt + '</span>');
+      $(this).wrap('<a href="' + this.src + '" title="' + alt + '" class="fancybox"></a>');
+    });
+    $(this).find('.fancybox').each(function(){
+      $(this).attr('rel', 'article' + i);
+    });
+  });
+  if($.fancybox){
+    $('.fancybox').fancybox();
+  }
+}); 
+</script>
+
+
+
+<script type="text/javascript">
+(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+})(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+ga('create', 'UA-56244096-1', 'auto');  
+ga('send', 'pageview');
+</script>
+
+
+
+
+  </body>
+</html>
+
