@@ -10,7 +10,8 @@
     <meta name="author" content="radiotail">
     
     <meta name="description" content="之前一直有朋友希望让eluna支持一下lua5.3，其实不修改的话eluna本身也是可以用在lua5.3上的，只是在整型上面的支持不友好，尤其是64位整型会丢失精度。虽然能用，但确实不友好，所以决定对eluna做一下对lua5.3的升级。
-这次改动主要有两方面，一方面是升级了整型交互接口，让elun">
+
+这次改动主要有两方面，一方面是升级了整型交互接口，让elu">
     
     
     
@@ -81,7 +82,7 @@
     </p>
   <p class="article-time">
     <time datetime="2016-05-17T09:01:53.000Z" itemprop="datePublished">5月 17 2016</time>
-    更新日期:<time datetime="2016-05-17T09:44:07.000Z" itemprop="dateModified">5月 17 2016</time>
+    更新日期:<time datetime="2016-05-17T09:48:46.000Z" itemprop="dateModified">5月 17 2016</time>
     
   </p>
 </header>
@@ -94,10 +95,12 @@
 		
 		</div>
 		
-		<p>之前一直有朋友希望让eluna支持一下lua5.3，其实不修改的话eluna本身也是可以用在<br>lua5.3上的，只是在整型上面的支持不友好，尤其是64位整型会丢失精度。虽然能用，<br>但确实不友好，所以决定对eluna做一下对lua5.3的升级。</p>
-<p>这次改动主要有两方面，一方面是升级了整型交互接口，让eluna在使用lua5.3时对整型<br>兼容更好，尤其是对64位整型将完全支持。eluna在lua5.1和5.2下因为是使用lua_Number<br>来保存的64位整型，所以最大只能支持-2^53~2^53范围内的整型，这是由double型52位尾<br>数和默认的一位整数1决定的，如果要保存的整型超过这个范围，将丢失精度，而lua5.3<br>中增加了对整型的友好支持，lua_Integer变成了64位的整型，所以直接使用lua_Integer<br>就不会再有精度丢失这个问题了。</p>
-<p>当然因为lua5.3对lua_Integer和lua_Number的严格区分，也出现了一个新问题：类型转<br>换。比如之前在使用lua5.2，5.1时向一个int参数传小数时，这个小数会被转成整数，而<br>在5.3中用lua_tointeger转换小数会报错，除非你传的小数位是0，如1.0。当然我们可以<br>先用lua_isinteger判断参数是否为整型，再决定是调用lua_tointeger还是lua_tonumber<br>转换，这样就能够兼容以前的行为将小数转换成整数，但问题是这又会让64位的数值转换<br>丢失精度，而且与lua5.3数值型严格区分的思想也相悖，所以我最终没有选择这种方案，<br>因此使用者需要自己将小数转成整数再传进来。</p>
-<figure class="highlight"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line"><span class="comment">// cpp中的函数</span></div><div class="line"><span class="keyword">void</span> foo(<span class="keyword">int</span> a) {</div><div class="line">}</div></pre></td></tr></table></figure>
+		<pre><code>之前一直有朋友希望让eluna支持一下lua5.<span class="number">3</span>，其实不修改的话eluna本身也是可以用在lua5.<span class="number">3</span>上的，只是在整型上面的支持不友好，尤其是<span class="number">64</span>位整型会丢失精度。虽然能用，但确实不友好，所以决定对eluna做一下对lua5.<span class="number">3</span>的升级。
+
+这次改动主要有两方面，一方面是升级了整型交互接口，让eluna在使用lua5.<span class="number">3</span>时对整型兼容更好，尤其是对<span class="number">64</span>位整型将完全支持。eluna在lua5.<span class="number">1</span>和<span class="number">5.2</span>下因为是使用lu<span class="built_in">a_Number</span>来保存的<span class="number">64</span>位整型，所以最大只能支持-<span class="number">2</span>^<span class="number">53</span>~<span class="number">2</span>^<span class="number">53</span>范围内的整型，这是由double型<span class="number">52</span>位尾数和默认的一位整数<span class="number">1</span>决定的，如果要保存的整型超过这个范围，将丢失精度，而lua5.<span class="number">3</span>中增加了对整型的友好支持，lu<span class="built_in">a_Integer</span>变成了<span class="number">64</span>位的整型，所以直接使用lu<span class="built_in">a_Integer</span>就不会再有精度丢失这个问题了。
+
+当然因为lua5.<span class="number">3</span>对lu<span class="built_in">a_Integer</span>和lu<span class="built_in">a_Number</span>的严格区分，也出现了一个新问题：类型转换。比如之前在使用lua5.<span class="number">2</span>，<span class="number">5.1</span>时向一个int参数传小数时，这个小数会被转成整数，而在<span class="number">5.3</span>中用lu<span class="built_in">a_tointeger</span>转换小数会报错，除非你传的小数位是<span class="number">0</span>，如<span class="number">1.0</span>。当然我们可以先用lu<span class="built_in">a_isinteger</span>判断参数是否为整型，再决定是调用lu<span class="built_in">a_tointeger</span>还是lu<span class="built_in">a_tonumber</span>转换，这样就能够兼容以前的行为将小数转换成整数，但问题是这又会让<span class="number">64</span>位的数值转换丢失精度，而且与lua5.<span class="number">3</span>数值型严格区分的思想也相悖，所以我最终没有选择这种方案，因此使用者需要自己将小数转成整数再传进来。
+</code></pre><figure class="highlight"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line"><span class="comment">// cpp中的函数</span></div><div class="line"><span class="keyword">void</span> foo(<span class="keyword">int</span> a) {</div><div class="line">}</div></pre></td></tr></table></figure>
 
 
 
@@ -107,9 +110,10 @@
 
 <figure class="highlight"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">foo(<span class="built_in">math</span>.tointeger(<span class="number">4</span>/<span class="number">3</span>)) <span class="comment">-- lua5.3中需要转成整型</span></div></pre></td></tr></table></figure>
 
-<p>如果你希望兼容这种小数到整数的强制转换，可以自行修改一下read2cpp的代码，很简单。</p>
-<p>除此之外还做了类型校验的优化，以前eluna在与lua交互时对传入cpp的参数类型验证并不<br>严格，当所传的参数类型错误时并没有给出友好的提示，因此这次针对这个问题做了优化。<br>新版本的eluna在接受到错误类型的参数时会给出提示，让使用者更好的分析错误原因，避<br>免一些隐蔽的错误。</p>
-  
+<pre><code>如果你希望兼容这种小数到整数的强制转换，可以自行修改一下<span class="built_in">read</span>2cpp的代码，很简单。
+
+除此之外还做了类型校验的优化，以前eluna在与lua交互时对传入cpp的参数类型验证并不严格，当所传的参数类型错误时并没有给出友好的提示，因此这次针对这个问题做了优化。新版本的eluna在接受到错误类型的参数时会给出提示，让使用者更好的分析错误原因，避免一些隐蔽的错误。
+</code></pre>  
 	</div>
 		<footer class="article-footer clearfix">
 
