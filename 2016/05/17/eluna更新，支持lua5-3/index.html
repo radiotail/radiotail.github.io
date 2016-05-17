@@ -4,16 +4,13 @@
 <head>
   <meta charset="UTF-8">
   
-    <title>require的加载流程 | radiotail&#39;s blog</title>
+    <title>eluna更新，支持lua5.3 | radiotail&#39;s blog</title>
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=3, minimum-scale=1">
     
     <meta name="author" content="radiotail">
     
-    <meta name="description" content="当我们require一个lua脚本或动态库时，lua到底是如何搜索到这个文件的呢？
-
-首先require会从package.loaded中查看这个文件是否已经加载过，如果加载过
-将直接返回上次加载的结果，否则将会调用依次调用4个函数去查找，知道这4个函数都无法找到就报错。
-最先被调用的函数会从pac">
+    <meta name="description" content="之前一直有朋友希望让eluna支持一下lua5.3，其实不修改的话eluna本身也是可以用在lua5.3上的，只是在整型上面的支持不友好，尤其是int64会丢失精度。虽然能用，但确实不友好，所以决定对eluna做一下对lua5.3的升级。
+这次改动主要有两方面，一方面是升级了整型交互接口，让elun">
     
     
     
@@ -76,15 +73,15 @@
 		<header class="article-info clearfix">
   <h1 itemprop="name">
     
-      <a href="/2015/10/28/require的加载流程/" title="require的加载流程" itemprop="url">require的加载流程</a>
+      <a href="/2016/05/17/eluna更新，支持lua5-3/" title="eluna更新，支持lua5.3" itemprop="url">eluna更新，支持lua5.3</a>
   </h1>
   <p class="article-author">By
     
       <a href="http://radiotail.github.io" title="radiotail">radiotail</a>
     </p>
   <p class="article-time">
-    <time datetime="2015-10-28T03:30:20.000Z" itemprop="datePublished">10月 28 2015</time>
-    更新日期:<time datetime="2015-10-28T03:31:24.000Z" itemprop="dateModified">10月 28 2015</time>
+    <time datetime="2016-05-17T09:01:53.000Z" itemprop="datePublished">5月 17 2016</time>
+    更新日期:<time datetime="2016-05-17T09:02:25.000Z" itemprop="dateModified">5月 17 2016</time>
     
   </p>
 </header>
@@ -97,37 +94,25 @@
 		
 		</div>
 		
-		<pre><code>当我们<span class="built_in">require</span>一个lua脚本或动态库时，lua到底是如何搜索到这个文件的呢？
-
-首先<span class="built_in">require</span>会从<span class="built_in">package</span>.loaded中查看这个文件是否已经加载过，如果加载过
-</code></pre><p>将直接返回上次加载的结果，否则将会调用依次调用4个函数去查找，知道这4个函数<br>都无法找到就报错。</p>
-<pre><code>最先被调用的函数会从<span class="built_in">package</span>.preload这个<span class="built_in">table</span>中查找key为这个<span class="built_in">require</span>值的
-</code></pre><p>函数，如果有则运行这个函数并保存得到返回值。因此我们可以自己给preload中添加<br>一些我们自己的加载函数，如：</p>
-<figure class="highlight"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line"><span class="built_in">package</span>.preload[<span class="string">"xxx"</span>] = <span class="function"><span class="keyword">function</span><span class="params">()</span></span></div><div class="line">	<span class="built_in">print</span>(<span class="string">"this is xxx!"</span>)</div><div class="line"><span class="keyword">end</span></div><div class="line"><span class="built_in">require</span>(<span class="string">"xxx"</span>)</div></pre></td></tr></table></figure>
+		<pre><code>之前一直有朋友希望让eluna支持一下lua5.<span class="number">3</span>，其实不修改的话eluna本身也是可以用在lua5.<span class="number">3</span>上的，只是在整型上面的支持不友好，尤其是int64会丢失精度。虽然能用，但确实不友好，所以决定对eluna做一下对lua5.<span class="number">3</span>的升级。
+这次改动主要有两方面，一方面是升级了整型交互接口，让eluna在使用lua5.<span class="number">3</span>时对整型兼容更好，尤其是对<span class="number">64</span>位整型将完全支持。eluna在lua5.<span class="number">1</span>和<span class="number">5.2</span>下因为是使用lu<span class="built_in">a_Number</span>来保存的<span class="number">64</span>位整型，所以最大只能支持-<span class="number">2</span>^<span class="number">53</span>~<span class="number">2</span>^<span class="number">53</span>范围内的整型，这是有double型<span class="number">52</span>位尾数和默认的一位整数<span class="number">1</span>决定的，如果要保存的整型超过这个范围，将丢失精度，而lua5.<span class="number">3</span>中的增加了对整型的友好支持，lu<span class="built_in">a_Integer</span>就是个<span class="number">64</span>位的整型，所以就不会再有<span class="number">64</span>位整型精度丢失的这个问题了。
+当然因为lua5.<span class="number">3</span>对lu<span class="built_in">a_Integer</span>和lu<span class="built_in">a_Number</span>的严格区分，也出现了一个新问题：类型转换。比如之前在使用lua5.<span class="number">2</span>，<span class="number">5.1</span>时向一个int参数传小数时，这个小数会被转成整数，而在<span class="number">5.3</span>中用lu<span class="built_in">a_tointeger</span>转换小数会报错，除非你传的小数位是<span class="number">0</span>，如<span class="number">1.0</span>。当然我们可以先用lu<span class="built_in">a_isinteger</span>判断参数是否为整型，再决定是调用lu<span class="built_in">a_tointeger</span>还是调用lu<span class="built_in">a_tonumber</span>转换，这样就能够将小数转换成整数，但问题是这又会让<span class="number">64</span>位的数值转换丢失精度，而且与lua5.<span class="number">3</span>数值型严格区分的思路也相悖，所以我最终没有选择这种方案，因此使用者需要自己将小数转成整数再传进来。
+</code></pre><figure class="highlight"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line"><span class="comment">// cpp中的函数</span></div><div class="line"><span class="keyword">void</span> foo(<span class="keyword">int</span> a) {</div><div class="line">}</div></pre></td></tr></table></figure>
 
 
-<pre><code>如果preload中没有的话则会从<span class="keyword">package</span>.path中保存的路径去搜索相应的lua文件，
-</code></pre><p>然后把文件作为一个函数执行并获得返回值。因此我们可以通过修改package.path的<br>值让require可以搜索我们希望他搜索的路径。</p>
-<pre><code>此时若搜索不到则会从<span class="keyword">package</span>.cpath中保存的路径去搜索相应的动态链接库文件。
-</code></pre><p>若能找到这个文件则会加载链接库，并加载和执行相应的luaopen_X函数得到结果。因<br>次我们也可以通过修改package.cpath的值让require可以搜索我们指定的路径。</p>
-<pre><code>若这时还是没找到文件则依旧按<span class="keyword">package</span>.cpath中的路径去查找链接库，不过这次
-</code></pre><p>会按照子库的形式去查找，如require(“xxx.aaa”)。lua会去查找名字为”xxx”的动态库<br>找到后就去加载luaopen_xxx_aaa这个函数执行。</p>
-<pre><code>根据这个流程，我们可以发现修改<span class="keyword">package</span>.path和<span class="keyword">package</span>.cpath可以让lua更方便
-</code></pre><p>，更快的找到我们指定的文件，尤其是通常我们会把自己写好的库放在一个指定的文件<br>夹下面，在使用时又想直接require这个文件，而不想加路径。这时直接修改这两个值就<br>能够达到目的了。</p>
-  
+
+<figure class="highlight"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line"><span class="literal">-</span><span class="literal">-</span> <span class="comment">lua中调用</span></div><div class="line"><span class="comment">foo(4/3)</span>  <span class="literal">-</span><span class="literal">-</span> <span class="comment">lua5</span><span class="string">.</span><span class="comment">3中将报错，5</span><span class="string">.</span><span class="comment">2</span><span class="string">,</span><span class="comment">5</span><span class="string">.</span><span class="comment">1正常</span></div></pre></td></tr></table></figure>
+
+
+
+<figure class="highlight"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">foo(<span class="built_in">math</span>.tointeger(<span class="number">4</span>/<span class="number">3</span>)) <span class="comment">-- lua5.3中需要转成整型</span></div></pre></td></tr></table></figure>
+
+<pre><code>如果你希望兼容这种小数到整数的强制转换，可以自行修改一下<span class="built_in">read</span>2cpp的代码，很简单。
+除此之外还做了一下类型校验的优化，以前eluna在与lua交互时对参数类型的验证并不严格，当所传的参数类型错误时并没有给出友好的提示，因此这次针对这个问题做了优化。新版本的eluna在接受到错误类型的参数时会给出提示，让使用者更好的分析错误原因，避免一些隐蔽的错误。
+</code></pre>  
 	</div>
 		<footer class="article-footer clearfix">
 
-  <div class="article-tags">
-  
-  <span></span> <a href="/tags/lua/">lua</a>
-  </div>
-
-
-<div class="article-categories">
-  <span></span>
-  <a class="article-category-link" href="/categories/lua/">lua</a>
-</div>
 
 
 
@@ -160,19 +145,11 @@
 	
 <nav class="article-nav clearfix">
  
- <div class="prev" >
- <a href="/2016/05/17/eluna更新，支持lua5-3/" title="eluna更新，支持lua5.3">
-  <strong>PREVIOUS:</strong><br/>
-  <span>
-  eluna更新，支持lua5.3</span>
-</a>
-</div>
-
 
 <div class="next">
-<a href="/2014/11/23/技术测试遇到封包攻击/"  title="技术测试遇到封包攻击">
+<a href="/2015/10/28/require的加载流程/"  title="require的加载流程">
  <strong>NEXT:</strong><br/> 
- <span>技术测试遇到封包攻击
+ <span>require的加载流程
 </span>
 </a>
 </div>
@@ -181,7 +158,7 @@
 
 	
 <section class="comment">
-	<div class="ds-thread" data-thread-key="2015/10/28/require的加载流程/" data-title="require的加载流程" data-url="http://radiotail.github.io/2015/10/28/require的加载流程/"></div>
+	<div class="ds-thread" data-thread-key="2016/05/17/eluna更新，支持lua5-3/" data-title="eluna更新，支持lua5.3" data-url="http://radiotail.github.io/2016/05/17/eluna更新，支持lua5-3/"></div>
 </section>
 
 
