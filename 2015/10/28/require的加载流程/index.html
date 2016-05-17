@@ -10,10 +10,8 @@
     <meta name="author" content="radiotail">
     
     <meta name="description" content="当我们require一个lua脚本或动态库时，lua到底是如何搜索到这个文件的呢？
-
-首先require会从package.loaded中查看这个文件是否已经加载过，如果加载过
-将直接返回上次加载的结果，否则将会调用依次调用4个函数去查找，知道这4个函数都无法找到就报错。
-最先被调用的函数会从pac">
+首先require会从package.loaded中查看这个文件是否已经加载过，如果加载过将直接返回上次加载的结果，否则将会调用依次调用4个函数去查找，知道这4个函数都无法找到就报错。
+最先被调用的函数会从packa">
     
     
     
@@ -84,7 +82,7 @@
     </p>
   <p class="article-time">
     <time datetime="2015-10-28T03:30:20.000Z" itemprop="datePublished">10月 28 2015</time>
-    更新日期:<time datetime="2016-05-17T09:46:40.000Z" itemprop="dateModified">5月 17 2016</time>
+    更新日期:<time datetime="2016-05-17T09:52:13.000Z" itemprop="dateModified">5月 17 2016</time>
     
   </p>
 </header>
@@ -97,23 +95,16 @@
 		
 		</div>
 		
-		<pre><code>当我们<span class="built_in">require</span>一个lua脚本或动态库时，lua到底是如何搜索到这个文件的呢？
-
-首先<span class="built_in">require</span>会从<span class="built_in">package</span>.loaded中查看这个文件是否已经加载过，如果加载过
-</code></pre><p>将直接返回上次加载的结果，否则将会调用依次调用4个函数去查找，知道这4个函数<br>都无法找到就报错。</p>
-<pre><code>最先被调用的函数会从<span class="built_in">package</span>.preload这个<span class="built_in">table</span>中查找key为这个<span class="built_in">require</span>值的
-</code></pre><p>函数，如果有则运行这个函数并保存得到返回值。因此我们可以自己给preload中添加<br>一些我们自己的加载函数，如：</p>
+		<p>当我们require一个lua脚本或动态库时，lua到底是如何搜索到这个文件的呢？</p>
+<p>首先require会从package.loaded中查看这个文件是否已经加载过，如果加载过将直接返回上次加载的结果，否则将会调用依次调用4个函数去查找，知道这4个函数都无法找到就报错。</p>
+<p>最先被调用的函数会从package.preload这个table中查找key为这个require值的函数，如果有则运行这个函数并保存得到返回值。因此我们可以自己给preload中添加一些我们自己的加载函数，如：</p>
 <figure class="highlight"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line"><span class="built_in">package</span>.preload[<span class="string">"xxx"</span>] = <span class="function"><span class="keyword">function</span><span class="params">()</span></span></div><div class="line">	<span class="built_in">print</span>(<span class="string">"this is xxx!"</span>)</div><div class="line"><span class="keyword">end</span></div><div class="line"><span class="built_in">require</span>(<span class="string">"xxx"</span>)</div></pre></td></tr></table></figure>
 
 
-<pre><code>如果preload中没有的话则会从<span class="keyword">package</span>.path中保存的路径去搜索相应的lua文件，
-</code></pre><p>然后把文件作为一个函数执行并获得返回值。因此我们可以通过修改package.path的<br>值让require可以搜索我们希望他搜索的路径。</p>
-<pre><code>此时若搜索不到则会从<span class="keyword">package</span>.cpath中保存的路径去搜索相应的动态链接库文件。
-</code></pre><p>若能找到这个文件则会加载链接库，并加载和执行相应的luaopen_X函数得到结果。因<br>次我们也可以通过修改package.cpath的值让require可以搜索我们指定的路径。</p>
-<pre><code>若这时还是没找到文件则依旧按<span class="keyword">package</span>.cpath中的路径去查找链接库，不过这次
-</code></pre><p>会按照子库的形式去查找，如require(“xxx.aaa”)。lua会去查找名字为”xxx”的动态库<br>找到后就去加载luaopen_xxx_aaa这个函数执行。</p>
-<pre><code>根据这个流程，我们可以发现修改<span class="keyword">package</span>.path和<span class="keyword">package</span>.cpath可以让lua更方便
-</code></pre><p>，更快的找到我们指定的文件，尤其是通常我们会把自己写好的库放在一个指定的文件<br>夹下面，在使用时又想直接require这个文件，而不想加路径。这时直接修改这两个值就<br>能够达到目的了。</p>
+<p>如果preload中没有的话则会从package.path中保存的路径去搜索相应的lua文件，然后把文件作为一个函数执行并获得返回值。因此我们可以通过修改package.path的值让require可以搜索我们希望他搜索的路径。</p>
+<p>此时若搜索不到则会从package.cpath中保存的路径去搜索相应的动态链接库文件。若能找到这个文件则会加载链接库，并加载和执行相应的luaopen_X函数得到结果。因次我们也可以通过修改package.cpath的值让require可以搜索我们指定的路径。</p>
+<p>若这时还是没找到文件则依旧按package.cpath中的路径去查找链接库，不过这次会按照子库的形式去查找，如require(“xxx.aaa”)。lua会去查找名字为”xxx”的动态库找到后就去加载luaopen_xxx_aaa这个函数执行。</p>
+<p>根据这个流程，我们可以发现修改package.path和package.cpath可以让lua更方便，更快的找到我们指定的文件，尤其是通常我们会把自己写好的库放在一个指定的文件夹下面，在使用时又想直接require这个文件，而不想加路径。这时直接修改这两个值就能够达到目的了。</p>
   
 	</div>
 		<footer class="article-footer clearfix">
