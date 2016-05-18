@@ -80,7 +80,7 @@
     </p>
   <p class="article-time">
     <time datetime="2016-05-18T09:36:55.000Z" itemprop="datePublished">5月 18 2016</time>
-    更新日期:<time datetime="2016-05-18T09:41:26.000Z" itemprop="dateModified">5月 18 2016</time>
+    更新日期:<time datetime="2016-05-18T09:50:26.000Z" itemprop="dateModified">5月 18 2016</time>
     
   </p>
 </header>
@@ -93,7 +93,7 @@
 		
 		</div>
 		
-		<p>在调用lua的yield时，我们可能会遇到”attempt to yield across metamethod/C-call boundary”(lua5.2或5.3为”attempt to yield across a C-call boundary”)这个报错，这报错到底是什么意思呢？又是什么原因引起的这个报错呢？</p>
+		<p>　　在调用lua的yield时，我们可能会遇到”attempt to yield across metamethod/C-call boundary”(lua5.2或5.3为”attempt to yield across a C-call boundary”)这个报错，这报错到底是什么意思呢？又是什么原因引起的这个报错呢？</p>
 <p>　　首先lua中的主协程不能被yield，如果你试图yield主协程，就会收到这个报错，当然如果是在lua5.2或者lua5.3的版本中，yield主协程有个单独的报错是”attempt to yield from outside a coroutine”。</p>
 <p>　　当你yield协程时，倒不会像主协程这样必会报错，但如果你从协程中调入到c层，然后又进入lua层，再yield当前协程，这时将会收到这个报错。</p>
 <p>举个例子:</p>
