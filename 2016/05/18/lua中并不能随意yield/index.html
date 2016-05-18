@@ -1,0 +1,377 @@
+
+ <!DOCTYPE HTML>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  
+    <title>lua中并不能随意yield | radiotail&#39;s blog</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=3, minimum-scale=1">
+    
+    <meta name="author" content="radiotail">
+    
+    <meta name="description" content="在调用lua的yield时，我们可能会遇到”attempt to yield across metamethod/C-call boundary”(lua5.2或5.3为”attempt to yield across a C-call boundary”)这个报错，这报错到底是什么意思呢？又是什么">
+    
+    
+    
+    
+    
+    <link rel="icon" href="/img/favicon.ico">
+    
+    
+    <link rel="apple-touch-icon" href="/img/pacman.jpg">
+    <link rel="apple-touch-icon-precomposed" href="/img/pacman.jpg">
+    
+    <link rel="stylesheet" href="/css/style.css" type="text/css">
+
+</head>
+
+  <body>
+    <header>
+      <div>
+		
+			<div id="imglogo">
+				<a href="/"><img src="/img/logo.svg" alt="radiotail&#39;s blog" title="radiotail&#39;s blog"/></a>
+			</div>
+			
+			<div id="textlogo">
+				<h1 class="site-name"><a href="/" title="radiotail&#39;s blog">radiotail&#39;s blog</a></h1>
+				<h2 class="blog-motto">疾如风，徐如林，侵略如火，不动如山</h2>
+			</div>
+			<div class="navbar"><a class="navbutton navmobile" href="#" title="菜单">
+			</a></div>
+			<nav class="animated">
+				<ul>
+					<ul>
+					 
+						<li><a href="/">Home</a></li>
+					
+						<li><a href="/archives">Archives</a></li>
+					
+						<li><a href="/about">About</a></li>
+					
+					<li>
+					
+					<form class="search" action="//baidu.com/s" method="get" accept-charset="utf-8">
+						<label>Search</label>
+						<input type="text" id="search" name="wd" autocomplete="off" maxlength="20" placeholder="搜索" />
+                        <input name=tn type=hidden value="bds">
+                        <input name=cl type=hidden value="3">
+                        <input name=ct type=hidden value="2097152">
+						<input type="hidden" name="si" value="radiotail.github.io">
+					</form>
+					
+					</li>
+				</ul>
+			</nav>			
+</div>
+
+    </header>
+    <div id="container">
+      <div id="main" class="post" itemscope itemprop="blogPost">
+	<article itemprop="articleBody"> 
+		<header class="article-info clearfix">
+  <h1 itemprop="name">
+    
+      <a href="/2016/05/18/lua中并不能随意yield/" title="lua中并不能随意yield" itemprop="url">lua中并不能随意yield</a>
+  </h1>
+  <p class="article-author">By
+    
+      <a href="http://radiotail.github.io" title="radiotail">radiotail</a>
+    </p>
+  <p class="article-time">
+    <time datetime="2016-05-18T09:36:55.000Z" itemprop="datePublished">5月 18 2016</time>
+    更新日期:<time datetime="2016-05-18T09:39:28.000Z" itemprop="dateModified">5月 18 2016</time>
+    
+  </p>
+</header>
+
+	<div class="article-content">
+		
+		
+		<div id="toc" class="toc-article">
+			<strong class="toc-title">文章目录</strong>
+		
+		</div>
+		
+		<p>在调用lua的yield时，我们可能会遇到”attempt to yield across metamethod/C-call boundary”(lua5.2或5.3为”attempt to yield across a C-call boundary”)这个报错，这报错到底是什么意思呢？又是什么原因引起的这个报错呢？</p>
+<p>　　首先lua中的主协程不能被yield，如果你试图yield主协程，就会收到这个报错，当然如果是在lua5.2或者lua5.3的版本中，yield主协程有个单独的报错是”attempt to yield from outside a coroutine”。</p>
+<p>　　当你yield协程时，倒不会像主协程这样必会报错，但如果你从协程中调入到c层，然后又进入lua层，再yield当前协程，这时将会收到这个报错。</p>
+<p>举个例子:</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div></pre></td><td class="code"><pre><div class="line">// c</div><div class="line"><span class="comment">#include &lt;stdio.h&gt;</span></div><div class="line"><span class="comment">#include "lua.h"</span></div><div class="line"><span class="comment">#include "lualib.h"</span></div><div class="line"><span class="comment">#include "lauxlib.h"</span></div><div class="line"></div><div class="line"></div><div class="line">static void traceback(lua_State* L, int n) {</div><div class="line">	lua_Debug ar;</div><div class="line">	if (lua_getstack(L, n, &ar)) {</div><div class="line">		lua_getinfo(L, <span class="string">"Sln"</span>, &ar);</div><div class="line"></div><div class="line">		if (ar.name) {</div><div class="line">			printf(<span class="string">"\tstack[%d] -&gt; line %d : %s()[%s : line %d]\n"</span>, n, ar.currentline, ar.name, ar.short_src, ar.linedefined);</div><div class="line">		} else {</div><div class="line">			printf(<span class="string">"\tstack[%d] -&gt; line %d : unknown[%s : line %d]\n"</span>, n, ar.currentline, ar.short_src, ar.linedefined);</div><div class="line">		}</div><div class="line"></div><div class="line">		traceback(L, n + 1);</div><div class="line">	}</div><div class="line">}</div><div class="line"></div><div class="line">static int errorTraceBack(lua_State *L) {</div><div class="line">	printf(<span class="string">"error stack traceback: %s\n"</span>, lua_tostring(L, -1));</div><div class="line"></div><div class="line">	traceback(L, 0);</div><div class="line"></div><div class="line">	return 0;</div><div class="line">}</div><div class="line"></div><div class="line">static int testc(lua_State *L) {</div><div class="line">	printf(<span class="string">"into testc!\n"</span>);</div><div class="line"></div><div class="line">	lua_pushcfunction(L, errorTraceBack);</div><div class="line">	lua_getglobal(L, <span class="string">"foo1"</span>);</div><div class="line">	lua_pcall(L, 0, 0, -2);</div><div class="line">	</div><div class="line">	printf(<span class="string">"out testc!\n"</span>);</div><div class="line"></div><div class="line">	return 0;</div><div class="line">}</div><div class="line"></div><div class="line">int main() {</div><div class="line">	lua_State* L;</div><div class="line">	int status;</div><div class="line"></div><div class="line">	L = luaL_newstate();</div><div class="line">	luaL_openlibs(L);</div><div class="line"></div><div class="line">	lua_pushcfunction(L, testc);</div><div class="line">	lua_setglobal(L, <span class="string">"testc"</span>);</div><div class="line"></div><div class="line">	lua_pushcfunction(L, errorTraceBack);</div><div class="line"></div><div class="line">	status = luaL_loadfile(L, <span class="string">"testL1.lua"</span>);</div><div class="line">	if (status) {</div><div class="line">		printf(<span class="string">"loadfile error!(%s)\n"</span>, lua_tostring(L, -1));</div><div class="line">		lua_settop(L, 0);</div><div class="line">		goto finish;</div><div class="line">	}</div><div class="line"></div><div class="line">	status = lua_pcall(L, 0, 0, -2);</div><div class="line">	if (status) {</div><div class="line">		lua_settop(L, 0);</div><div class="line">		goto finish;</div><div class="line">	}</div><div class="line"></div><div class="line"><span class="title">finish:</span></div><div class="line">	getchar();</div><div class="line">	lua_close(L);</div><div class="line"></div><div class="line">	return 0;</div><div class="line">}</div></pre></td></tr></table></figure>
+
+
+
+<figure class="highlight"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div></pre></td><td class="code"><pre><div class="line"><span class="comment">-- lua</span></div><div class="line"><span class="function"><span class="keyword">function</span> <span class="title">foo1</span><span class="params">()</span></span></div><div class="line">	<span class="built_in">print</span>(<span class="string">"into foo1!"</span>)</div><div class="line">	<span class="built_in">coroutine</span>.yield()</div><div class="line">	<span class="built_in">print</span>(<span class="string">"out foo1!"</span>)</div><div class="line"><span class="keyword">end</span></div><div class="line"></div><div class="line"><span class="keyword">local</span> co = <span class="built_in">coroutine</span>.create(</div><div class="line"><span class="function"><span class="keyword">function</span><span class="params">()</span></span></div><div class="line">    <span class="built_in">print</span>(<span class="string">"coroutine resume!"</span>)</div><div class="line">    testc()</div><div class="line"><span class="keyword">end</span></div><div class="line">)</div><div class="line"></div><div class="line"><span class="built_in">coroutine</span>.resume(co)</div></pre></td></tr></table></figure>
+
+<p>运行结果:</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div></pre></td><td class="code"><pre><div class="line">coroutine resume!</div><div class="line"><span class="keyword">into</span> testc!</div><div class="line"><span class="keyword">into</span> foo1!</div><div class="line">error stack traceback: attempt <span class="built_in">to</span> yield across metamethod/C-call boundary</div><div class="line">        stack[<span class="number">0</span>] -&gt; <span class="built_in">line</span> -<span class="number">1</span> : unknown[[C] : <span class="built_in">line</span> -<span class="number">1</span>]</div><div class="line">        stack[<span class="number">1</span>] -&gt; <span class="built_in">line</span> -<span class="number">1</span> : yield()[[C] : <span class="built_in">line</span> -<span class="number">1</span>]</div><div class="line">        stack[<span class="number">2</span>] -&gt; <span class="built_in">line</span> <span class="number">3</span> : unknown[testL1.lua : <span class="built_in">line</span> <span class="number">1</span>]</div><div class="line">        stack[<span class="number">3</span>] -&gt; <span class="built_in">line</span> -<span class="number">1</span> : testc()[[C] : <span class="built_in">line</span> -<span class="number">1</span>]</div><div class="line">        stack[<span class="number">4</span>] -&gt; <span class="built_in">line</span> <span class="number">10</span> : unknown[testL1.lua : <span class="built_in">line</span> <span class="number">8</span>]</div><div class="line">out testc!</div></pre></td></tr></table></figure>
+
+<p>流程:</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">coroutine --&gt; c --&gt; coroutine --&gt; <span class="keyword">yield</span>  ===&gt; 报错</div></pre></td></tr></table></figure>
+
+<p>　　为什么这种情况下lua会给出这种报错呢？主要是因为在从c函数调回到coroutine中yield时，coroutine当前的堆栈情况会被保存在lua_State中，因此在调用resume时，lua可以恢复yield时的场景，并继续执行下去。但c函数不会因为coroutine的yield被挂起，它会继续执行下去，函数执行完后堆栈就被销毁了，所以无法再次恢复现场。而且因为c函数不会被yield函数挂起，导致c和lua的行为也不一致了，一个被挂起，一个继续执行完，代码逻辑很可能因此出错。</p>
+<p>　　由此可看出其实这个报错并不是一个严重错误，而是一个保障限制。因为我们的c函数在回调到coroutine后并没有要执行的逻辑，比如例子中testc去掉最后的printf，那么lua_pcall就是最后一个要执行的逻辑，所以c函数并不需要恢复现场。在这种情况下其实lua是不需要报出这个错误的，因为整体逻辑不会收到影响，不过lua为了怕使用者犯错，并没有这么做，毕竟他也不知道你后面有没有要执行的逻辑，除非你告诉他。</p>
+<p>　　在lua5.2以上版本加入了新的API(lua_callk, lua_pcallk, lua_yieldk)，变相解决了c无法被挂起而继续执行后续代码的问题。这些API通过传入一个后续执行函数，让resume后调用它，也就是说你可以把c要后续执行的逻辑都放在这个函数中传给API，这样resume后就会执行这些逻辑了，但如果调用这些API时没有传这个函数，那么逻辑就和lua5.1的一样了，依旧会报错。当然如果我们的c函数并没有要执行的后续逻辑，又不希望收到这个报错，可以向API中传一个空函数，这样就不会报错了。</p>
+  
+	</div>
+		<footer class="article-footer clearfix">
+
+
+
+
+<div class="article-share" id="share">
+
+  
+<div class="jiathis_style">
+    <span class="jiathis_txt">分享到：</span>
+    <a class="jiathis_button_tsina">新浪微博</a>
+    <a class="jiathis_button_weixin">微信</a>
+    <a class="jiathis_button_twitter">Twitter</a>
+    <a class="jiathis_button_evernote">EverNote</a>
+    <a href="http://www.jiathis.com/share?uid=1501277" class="jiathis jiathis_txt jiathis_separator jtico jtico_jiathis" target="_blank">更多</a>
+</div>
+<script type="text/javascript" >
+    var jiathis_config={
+    data_track_clickback:true,
+    sm:"copy,renren,cqq",
+    pic:"",
+    summary:"",
+    
+  </script> 
+<script type="text/javascript" src="//v3.jiathis.com/code/jia.js?uid=
+" charset="utf-8"></script>      
+
+
+</div>
+</footer>   	       
+	</article>
+	
+<nav class="article-nav clearfix">
+ 
+
+<div class="next">
+<a href="/2016/05/17/eluna更新，支持lua5-3/"  title="eluna更新，支持lua5.3">
+ <strong>NEXT:</strong><br/> 
+ <span>eluna更新，支持lua5.3
+</span>
+</a>
+</div>
+
+</nav>
+
+	
+<section class="comment">
+	<div class="ds-thread" data-thread-key="2016/05/18/lua中并不能随意yield/" data-title="lua中并不能随意yield" data-url="http://radiotail.github.io/2016/05/18/lua中并不能随意yield/"></div>
+</section>
+
+
+</div>  
+      <div class="openaside"><a class="navbutton" href="#" title="显示侧边栏"></a></div>
+
+  <div id="toc" class="toc-aside">
+  <strong class="toc-title">文章目录</strong>
+  
+  </div>
+
+<div id="asidepart">
+<div class="closeaside"><a class="closebutton" href="#" title="隐藏侧边栏"></a></div>
+<aside class="clearfix">
+
+  
+<div class="categorieslist">
+	<p class="asidetitle">分类</p>
+		<ul>
+		
+			<li><a href="/categories/lua/c/" title="c">c<sup>2</sup></a></li>
+		
+			<li><a href="/categories/lua/" title="lua">lua<sup>4</sup></a></li>
+		
+			<li><a href="/categories/随笔/" title="随笔">随笔<sup>2</sup></a></li>
+		
+		</ul>
+</div>
+
+
+  
+  <div class="tagcloudlist">
+    <p class="asidetitle">标签云</p>
+    <div class="tagcloudlist clearfix">
+       <a href="/tags/c/" style="font-size: 10.00px;">c</a><a href="/tags/lua/" style="font-size: 20.00px;">lua</a><a href="/tags/随笔/" style="font-size: 10.00px;">随笔</a>
+    </div>
+  </div>
+
+
+  
+  <div class="archiveslist">
+    <p class="asidetitle"><a href="/archives">归档</a></p>
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/05/">May 2016</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2015/10/">October 2015</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2014/11/">November 2014</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2014/10/">October 2014</a><span class="archive-list-count">2</span></li></ul>
+  </div>
+
+
+</aside>
+</div>
+    </div>
+    <footer><div id="footer" >
+	
+	<div class="line">
+		<span></span>
+		<div class="author"></div>
+	</div>
+	
+	
+	<section class="info">
+		<p> 要得到真正的快乐，我们只需拥有三样东西： <br/>
+			有想做的事，有值得爱的人，有美丽的梦。</p>
+	</section>
+	 
+	<div class="social-font" class="clearfix">
+		
+		<a href="http://weibo.com/1833264473" target="_blank" title="weibo"></a>
+		
+		
+		
+		<a href="https://github.com/radiotail" target="_blank" title="github"></a>
+		
+		
+	</div>
+		<p class="copyright">Powered by <a href="http://hexo.io" target="_blank" title="hexo">hexo</a> and Theme by <a href="https://github.com/wizicer/iceman" target="_blank" title="Iceman">Iceman</a> © 2016 
+		
+		<a href="http://radiotail.github.io" target="_blank" title="radiotail">radiotail</a>
+		
+		</p>
+</div>
+</footer>
+    <script src="/js/jquery-2.1.0.min.js"></script>
+<script type="text/javascript">
+$(document).ready(function(){ 
+  $('.navbar').click(function(){
+    $('header nav').toggleClass('shownav');
+  });
+  var myWidth = 0;
+  function getSize(){
+    if( typeof( window.innerWidth ) == 'number' ) {
+      myWidth = window.innerWidth;
+    } else if( document.documentElement && document.documentElement.clientWidth) {
+      myWidth = document.documentElement.clientWidth;
+    };
+  };
+  var m = $('#main'),
+      a = $('#asidepart'),
+      c = $('.closeaside'),
+      o = $('.openaside');
+  $(window).resize(function(){
+    getSize(); 
+    if (myWidth >= 1024) {
+      $('header nav').removeClass('shownav');
+    }else
+    {
+      m.removeClass('moveMain');
+      a.css('display', 'block').removeClass('fadeOut');
+      o.css('display', 'none');
+      
+      $('#toc.toc-aside').css('display', 'none');
+        
+    }
+  });
+  c.click(function(){
+    a.addClass('fadeOut').css('display', 'none');
+    o.css('display', 'block').addClass('fadeIn');
+    m.addClass('moveMain');
+  });
+  o.click(function(){
+    o.css('display', 'none').removeClass('beforeFadeIn');
+    a.css('display', 'block').removeClass('fadeOut').addClass('fadeIn');      
+    m.removeClass('moveMain');
+  });
+  $(window).scroll(function(){
+    o.css("top",Math.max(80,260-$(this).scrollTop()));
+  });
+});
+</script>
+
+<script type="text/javascript">
+$(document).ready(function(){ 
+  var ai = $('.article-content>iframe'),
+      ae = $('.article-content>embed'),
+      t  = $('#toc'),
+      h  = $('article h2')
+      ah = $('article h2'),
+      ta = $('#toc.toc-aside'),
+      o  = $('.openaside'),
+      c  = $('.closeaside');
+  if(ai.length>0){
+    ai.wrap('<div class="video-container" />');
+  };
+  if(ae.length>0){
+   ae.wrap('<div class="video-container" />');
+  };
+  if(ah.length==0){
+    t.css('display','none');
+  }else{
+    c.click(function(){
+      ta.css('display', 'block').addClass('fadeIn');
+    });
+    o.click(function(){
+      ta.css('display', 'none');
+    });
+    $(window).scroll(function(){
+      ta.css("top",Math.max(140,320-$(this).scrollTop()));
+    });
+  };
+});
+</script>
+
+
+
+<script type="text/javascript">
+  var duoshuoQuery = {short_name:"radiotail"};
+  (function() {
+    var ds = document.createElement('script');
+    ds.type = 'text/javascript';ds.async = true;
+    ds.src = '//static.duoshuo.com/embed.js';
+    ds.charset = 'UTF-8';
+    (document.getElementsByTagName('head')[0] 
+    || document.getElementsByTagName('body')[0]).appendChild(ds);
+  })();
+</script> 
+
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css" media="screen" type="text/css">
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+<script type="text/javascript">
+$(document).ready(function(){ 
+  $('.article-content').each(function(i){
+    $(this).find('img').each(function(){
+      if ($(this).parent().hasClass('fancybox')) return;
+      var alt = this.alt;
+      if (alt) $(this).after('<span class="caption">' + alt + '</span>');
+      $(this).wrap('<a href="' + this.src + '" title="' + alt + '" class="fancybox"></a>');
+    });
+    $(this).find('.fancybox').each(function(){
+      $(this).attr('rel', 'article' + i);
+    });
+  });
+  if($.fancybox){
+    $('.fancybox').fancybox();
+  }
+}); 
+</script>
+
+
+
+<script type="text/javascript">
+(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+})(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+ga('create', 'UA-56244096-1', 'auto');  
+ga('send', 'pageview');
+</script>
+
+
+
+
+  </body>
+</html>
+
